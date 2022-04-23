@@ -303,12 +303,13 @@ int align_to_graph(Config *config) {
     assert(config->infbase.size());
 
     // initialize graph
-    ts::init_alphabet("dna4");
     auto graph = load_critical_dbg(config->infbase);
-//    graph->print(std::cout);
-    std::cout << graph->num_nodes() << std::endl;
+
+    // compute sketches on the graph
+    ts::init_alphabet("dna4");
     auto kmer_word_size = ts::int_pow<kmer_type>(ts::alphabet_size, 1);
     graph->compute_sketches(4, 3, kmer_word_size);
+
     if (utils::ends_with(config->outfbase, ".gfa")) {
         gfa_map_files(config, files, *graph);
         return 0;
