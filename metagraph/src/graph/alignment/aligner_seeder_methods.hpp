@@ -29,27 +29,6 @@ class ISeeder {
     }
 };
 
-class SketchSeeder : public ISeeder {
-    public:
-    SketchSeeder(const DeBruijnGraph &graph,
-                    std::string_view query,
-                    const DBGAlignerConfig &config);
-    virtual ~SketchSeeder() {}
-    virtual const DBGAlignerConfig& get_config() const = 0;
-    virtual std::vector<Seed> get_seeds() const = 0;
-    virtual size_t get_num_matches() const = 0;
-
-    virtual std::vector<Alignment> get_alignments() const {
-        std::vector<Alignment> alignments;
-        std::vector<Seed> seeds = get_seeds();
-        alignments.reserve(seeds.size());
-        for (const Seed &seed : seeds) {
-            alignments.emplace_back(seed, get_config());
-            alignments.back().trim_offset();
-        }
-        return alignments;
-    }
-};
 
 class ManualMatchingSeeder : public ISeeder {
   public:
@@ -133,6 +112,22 @@ class MEMSeeder : public ExactSeeder {
     std::vector<Seed> get_seeds() const override;
 
     virtual const bitmap& get_mem_terminator() const = 0;
+};
+
+class SketchSeeder : public ExactSeeder {
+    public:
+        typedef DeBruijnGraph::node_index node_index;
+
+        SketchSeeder(const DeBruijnGraph &graph,
+                     std::string_view query,
+                     bool orientation,
+                     std::vector<node_index>&& nodes,
+                     const DBGAlignerConfig &config);
+
+        virtual ~SketchSeeder() {}
+
+        const DBGAlignerConfig& get_config() const override { return config_; }
+        std::vector<Seed> get_seeds() const override;
 };
 
 class UniMEMSeeder : public MEMSeeder {

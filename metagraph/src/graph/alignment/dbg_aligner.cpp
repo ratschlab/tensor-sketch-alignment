@@ -707,6 +707,7 @@ DBGAligner<Seeder, Extender, AlignmentCompare>
 
 template class DBGAligner<>;
 template class DBGAligner<SuffixSeeder<UniMEMSeeder>, LabeledExtender>;
+template class DBGAligner<SuffixSeeder<SketchSeeder>, DefaultColumnExtender, LocalAlignmentLess>;
 
 } // namespace align
 } // namespace graph

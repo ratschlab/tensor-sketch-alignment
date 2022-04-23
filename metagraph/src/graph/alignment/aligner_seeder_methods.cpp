@@ -15,10 +15,6 @@ using mtg::common::logger;
 
 typedef Alignment::score_t score_t;
 
-//auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
-//
-//}
-
 ExactSeeder::ExactSeeder(const DeBruijnGraph &graph,
                          std::string_view query,
                          bool orientation,
@@ -30,6 +26,13 @@ ExactSeeder::ExactSeeder(const DeBruijnGraph &graph,
         query_nodes_(std::move(nodes)),
         config_(config),
         num_matching_(num_exact_matching()) { assert(config_.check_config_scores()); }
+
+SketchSeeder::SketchSeeder(const DeBruijnGraph &graph,
+                         std::string_view query,
+                         bool orientation,
+                         std::vector<node_index>&& nodes,
+                         const DBGAlignerConfig &config) :
+        ExactSeeder(graph, query, orientation, std::move(nodes), config) {}
 
 size_t ExactSeeder::num_exact_matching() const {
     size_t num_matching = 0;
@@ -73,6 +76,32 @@ auto ExactSeeder::get_seeds() const -> std::vector<Seed> {
 
     return seeds;
 }
+
+auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
+    size_t k = graph_.get_k();
+    assert(k >= config_.min_seed_length);
+
+    if (num_matching_ < config_.min_exact_match * query_.size())
+        return {};
+
+    std::vector<Seed> seeds;
+
+    if (config_.max_seed_length < k)
+        return seeds;
+
+    size_t end_clipping = query_.size() - k;
+    for (size_t i = 0; i < query_nodes_.size(); ++i, --end_clipping) {
+        if (query_nodes_[i] != DeBruijnGraph::npos) {
+            assert(i + k <= query_.size());
+            seeds.emplace_back(query_.substr(i, k),
+                               std::vector<node_index>{ query_nodes_[i] },
+                               orientation_, 0, i, end_clipping);
+        }
+    }
+
+    return seeds;
+}
+
 
 template <class BOSSEdgeRange>
 void suffix_to_prefix(const DBGSuccinct &dbg_succ,
@@ -398,6 +427,7 @@ auto MEMSeeder::get_seeds() const -> std::vector<Seed> {
 
 template class SuffixSeeder<ExactSeeder>;
 template class SuffixSeeder<UniMEMSeeder>;
+template class SuffixSeeder<SketchSeeder>;
 
 } // namespace align
 } // namespace graph

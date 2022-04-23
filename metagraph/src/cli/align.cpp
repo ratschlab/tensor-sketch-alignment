@@ -308,7 +308,7 @@ int align_to_graph(Config *config) {
     // compute sketches on the graph
     ts::init_alphabet("dna4");
     auto kmer_word_size = ts::int_pow<kmer_type>(ts::alphabet_size, 1);
-    graph->compute_sketches(4, 3, kmer_word_size);
+    //graph->compute_sketches(4, 3, kmer_word_size);
 
     if (utils::ends_with(config->outfbase, ".gfa")) {
         gfa_map_files(config, files, *graph);
@@ -436,7 +436,8 @@ int align_to_graph(Config *config) {
                     aligner = std::make_unique<LabeledAligner<>>(*aln_graph, aligner_config,
                                                                  anno_dbg->get_annotator());
                 } else {
-                    aligner = std::make_unique<DBGAligner<>>(*aln_graph, aligner_config);
+//                    aligner = std::make_unique<DBGAligner<>>(*aln_graph, aligner_config);
+                    aligner = std::make_unique<DBGAligner<SuffixSeeder<SketchSeeder>, DefaultColumnExtender, LocalAlignmentLess>>(*aln_graph, aligner_config);
                 }
 
                 aligner->align_batch(batch,
