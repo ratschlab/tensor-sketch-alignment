@@ -9,7 +9,17 @@
 #include "common/threads/threading.hpp"
 #include "common/vectors/vector_algorithm.hpp"
 #include "graph/representation/canonical_dbg.hpp"
-
+#include "sequence/alphabets.hpp"
+#include "sequence/fasta_io.hpp"
+#include "sketch/edit_distance.hpp"
+#include "sketch/hash_base.hpp"
+#include "sketch/hash_min.hpp"
+#include "sketch/hash_ordered.hpp"
+#include "sketch/hash_weighted.hpp"
+#include "sketch/tensor.hpp"
+#include "sketch/tensor_block.hpp"
+#include "sketch/tensor_embedding.hpp"
+#include "sketch/tensor_slide.hpp"
 
 namespace mtg {
 namespace graph {
@@ -447,6 +457,30 @@ void DeBruijnGraph
     });
 }
 
+std::unordered_map<uint64_t, node_index> DeBruijnGraph::compute_sketches(int embed_dim, int tuple_length, int kmer_word_size) {
+    using seq_type = uint8_t;
+    std::random_device rd;
+    ts::Tensor<seq_type> tensor = ts::Tensor<seq_type>(kmer_word_size, embed_dim, tuple_length, rd());
+    std::unordered_map<uint64_t, node_index> map;
+    call_nodes([&](node_index i) {
+        std::string node_sequence = get_node_sequence(i);
+        std::vector<seq_type> node_sequence_to_int;
+        for (unsigned char c: node_sequence) {
+            if(c != '$') {
+                node_sequence_to_int.push_back(ts::char2int(c));
+            }
+        }
+        uint64_t discretized_sketch = 0;
+        std::vector<double> sketch = tensor.compute(node_sequence_to_int);
+        for(int i = 0; i < embed_dim; ++i) {
+            // Get sign
+            discretized_sketch += std::signbit(sketch[embed_dim - 1 - i]) * pow(2, i);
+        }
+        map.insert({discretized_sketch, i});
+    });
+    return map;
+}
+
 void DeBruijnGraph::print(std::ostream &out) const {
     std::string vertex_header("Vertex");
     vertex_header.resize(get_k(), ' ');
@@ -457,7 +491,7 @@ void DeBruijnGraph::print(std::ostream &out) const {
 
     call_nodes([&](node_index i) {
         out << i
-            << "\t" << get_node_sequence(i)
+            << "\t" << "Node seq:" << get_node_sequence(i) << "\t" << "Node:" << i
             << std::endl;
     });
 }

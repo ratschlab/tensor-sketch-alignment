@@ -1,6 +1,7 @@
 #include "align.hpp"
 
 #include <tsl/ordered_set.h>
+#include <random>
 
 #include "common/logger.hpp"
 #include "common/unix_tools.hpp"
@@ -16,7 +17,17 @@
 #include "config/config.hpp"
 #include "load/load_graph.hpp"
 #include "load/load_annotated_graph.hpp"
-
+#include "sequence/alphabets.hpp"
+#include "sequence/fasta_io.hpp"
+#include "sketch/edit_distance.hpp"
+#include "sketch/hash_base.hpp"
+#include "sketch/hash_min.hpp"
+#include "sketch/hash_ordered.hpp"
+#include "sketch/hash_weighted.hpp"
+#include "sketch/tensor.hpp"
+#include "sketch/tensor_block.hpp"
+#include "sketch/tensor_embedding.hpp"
+#include "sketch/tensor_slide.hpp"
 namespace mtg {
 namespace cli {
 
@@ -282,6 +293,7 @@ std::string format_alignment(const std::string &header,
 
     return sout;
 }
+using kmer_type = uint64_t;
 
 int align_to_graph(Config *config) {
     assert(config);
@@ -291,8 +303,12 @@ int align_to_graph(Config *config) {
     assert(config->infbase.size());
 
     // initialize graph
+    ts::init_alphabet("dna4");
     auto graph = load_critical_dbg(config->infbase);
-
+//    graph->print(std::cout);
+    std::cout << graph->num_nodes() << std::endl;
+    auto kmer_word_size = ts::int_pow<kmer_type>(ts::alphabet_size, 1);
+    graph->compute_sketches(4, 3, kmer_word_size);
     if (utils::ends_with(config->outfbase, ".gfa")) {
         gfa_map_files(config, files, *graph);
         return 0;

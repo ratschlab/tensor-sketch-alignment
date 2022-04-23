@@ -10,7 +10,15 @@ project(MetaGraph
   VERSION ${VERSION}
   DESCRIPTION "A tool for scalable construction of annotated genome graphs and sequence-to-graph alignment"
 )
+find_package(OpenMP REQUIRED)
 
+include_directories(.)
+
+# Google Flags Library
+add_subdirectory(${PROJECT_SOURCE_DIR}/src/third_party/gflags EXCLUDE_FROM_ALL)
+
+# Murmur
+add_subdirectory(${PROJECT_SOURCE_DIR}/src/third_party/murmur_hash EXCLUDE_FROM_ALL)
 add_definitions(-DVERSION="${VERSION}")
 include(CheckFunctionExists)
 include(CheckLibraryExists)
@@ -101,7 +109,7 @@ set(JSONCPP_WITH_TESTS FALSE)
 add_subdirectory(external-libraries/jsoncpp)
 
 add_compile_options(
-  -Wall -Wextra -Werror
+  -Wall -Wextra
   -D_THREAD_SAFE -pthread -g -O0
   # -DDBGDEBUG -Wconversion -Wsign-conversion -Werror=shadow=compatible-local
 )
@@ -165,6 +173,24 @@ add_compile_options(-mavx -mavx2 -mfma -mbmi -mbmi2)
 else()
 message(WARNING "Compiling without AVX instructions!")
 endif()
+
+#---------
+# Sketch
+#---------
+file(GLOB util_files "src/util/*.cpp")
+add_library(util ${util_files})
+target_link_libraries(util gflags OpenMP::OpenMP_CXX)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  target_link_libraries(util stdc++fs)
+endif()
+
+file(GLOB sequence_files "src/sequence/*.cpp")
+add_library(sequence ${sequence_files})
+target_link_libraries(sequence gflags OpenMP::OpenMP_CXX)
+
+file(GLOB sketch_files "src/sketch/*.cpp")
+add_library(sketch_lib ${sketch_files})
+target_link_libraries(sketch_lib murmur_lib OpenMP::OpenMP_CXX)
 
 #-------------------
 # KMC k-mer counter
@@ -437,9 +463,9 @@ if(NOT CPPNOFS)
   endif()
 endif()
 
-target_link_libraries(metagraph-core ${METALIBS})
-target_link_libraries(metagraph-cli PRIVATE metagraph-core)
-target_link_libraries(metagraph metagraph-core metagraph-cli)
+target_link_libraries(metagraph-core ${METALIBS} sequence util sketch_lib)
+target_link_libraries(metagraph-cli PRIVATE metagraph-core sequence util sketch_lib)
+target_link_libraries(metagraph metagraph-core metagraph-cli sequence util sketch_lib)
 
 add_custom_target(link_target ALL
   COMMAND ${CMAKE_COMMAND} -E

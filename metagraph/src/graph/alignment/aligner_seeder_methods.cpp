@@ -15,6 +15,10 @@ using mtg::common::logger;
 
 typedef Alignment::score_t score_t;
 
+//auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
+//
+//}
+
 ExactSeeder::ExactSeeder(const DeBruijnGraph &graph,
                          std::string_view query,
                          bool orientation,

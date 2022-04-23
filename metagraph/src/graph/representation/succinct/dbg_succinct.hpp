@@ -13,7 +13,7 @@ namespace graph {
 class DBGSuccinct : public DeBruijnGraph {
   public:
     friend class MaskedDeBruijnGraph;
-
+    //std::unordered_map<int, node_index> compute_sketches();
     explicit DBGSuccinct(size_t k, Mode mode = BASIC);
     explicit DBGSuccinct(boss::BOSS *boss_graph, Mode mode = BASIC);
 

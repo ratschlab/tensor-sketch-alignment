@@ -6,7 +6,8 @@
 #include <functional>
 #include <iostream>
 #include <memory>
-
+#include <unordered_map>
+#include <random>
 
 namespace utils {
     std::string make_suffix(const std::string &str, const std::string &suffix);
@@ -148,6 +149,8 @@ class SequenceGraph {
 class DeBruijnGraph : public SequenceGraph {
   public:
     enum Mode { BASIC = 0, CANONICAL, PRIMARY };
+
+    virtual std::unordered_map<uint64_t, node_index> compute_sketches(int embed_dim, int tuple_length,  int kmer_word_size);
 
     virtual ~DeBruijnGraph() {}
 
