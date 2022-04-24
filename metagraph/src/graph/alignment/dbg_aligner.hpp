@@ -11,7 +11,17 @@
 #include "aligner_chainer.hpp"
 #include "graph/representation/base/sequence_graph.hpp"
 #include "graph/representation/succinct/dbg_succinct.hpp"
-
+#include "sequence/alphabets.hpp"
+#include "sequence/fasta_io.hpp"
+#include "sketch/edit_distance.hpp"
+#include "sketch/hash_base.hpp"
+#include "sketch/hash_min.hpp"
+#include "sketch/hash_ordered.hpp"
+#include "sketch/hash_weighted.hpp"
+#include "sketch/tensor.hpp"
+#include "sketch/tensor_block.hpp"
+#include "sketch/tensor_embedding.hpp"
+#include "sketch/tensor_slide.hpp"
 
 namespace mtg {
 namespace graph {
@@ -64,7 +74,6 @@ class DBGAligner : public IDBGAligner {
     BatchSeeders
     virtual build_seeders(const std::vector<Query> &seq_batch,
                           const std::vector<AlignmentResults> &wrapped_seqs) const;
-
   private:
 // there are no reverse-complement for protein sequences
 #if ! _PROTEIN_GRAPH

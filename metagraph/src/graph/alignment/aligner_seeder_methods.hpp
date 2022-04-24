@@ -3,7 +3,18 @@
 
 #include "alignment.hpp"
 #include "common/vectors/bitmap.hpp"
-
+#include <unordered_map>
+#include "sequence/alphabets.hpp"
+#include "sequence/fasta_io.hpp"
+#include "sketch/edit_distance.hpp"
+#include "sketch/hash_base.hpp"
+#include "sketch/hash_min.hpp"
+#include "sketch/hash_ordered.hpp"
+#include "sketch/hash_weighted.hpp"
+#include "sketch/tensor.hpp"
+#include "sketch/tensor_block.hpp"
+#include "sketch/tensor_embedding.hpp"
+#include "sketch/tensor_slide.hpp"
 
 namespace mtg {
 namespace graph {
@@ -128,6 +139,9 @@ class SketchSeeder : public ExactSeeder {
 
         const DBGAlignerConfig& get_config() const override { return config_; }
         std::vector<Seed> get_seeds() const override;
+
+    protected:
+        std::unordered_map<int, std::string> sketches;
 };
 
 class UniMEMSeeder : public MEMSeeder {

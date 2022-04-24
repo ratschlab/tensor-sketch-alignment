@@ -457,14 +457,12 @@ void DeBruijnGraph
     });
 }
 
-std::unordered_map<uint64_t, std::vector<node_index>> DeBruijnGraph::compute_sketches(int embed_dim, int tuple_length, int kmer_word_size) {
-    using seq_type = uint8_t;
-    std::random_device rd;
-    ts::Tensor<seq_type> tensor = ts::Tensor<seq_type>(kmer_word_size, embed_dim, tuple_length, rd());
+void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size, size_t embed_dim, size_t tuple_length, uint32_t seed) {
+    ts::Tensor<uint8_t> tensor = ts::Tensor<uint8_t>(kmer_word_size, embed_dim, tuple_length, seed);
     std::unordered_map<uint64_t, std::vector<node_index>> map;
     call_nodes([&](node_index i) {
         std::string node_sequence = get_node_sequence(i);
-        std::vector<seq_type> node_sequence_to_int;
+        std::vector<uint8_t> node_sequence_to_int;
         for (unsigned char c: node_sequence) {
             if(c != '$') {
                 node_sequence_to_int.push_back(ts::char2int(c));
@@ -472,13 +470,12 @@ std::unordered_map<uint64_t, std::vector<node_index>> DeBruijnGraph::compute_ske
         }
         uint64_t discretized_sketch = 0;
         std::vector<double> sketch = tensor.compute(node_sequence_to_int);
-        for(int i = 0; i < embed_dim; ++i) {
+        for(int i = 0; i < sketch.size(); ++i) {
             // Get sign
-            discretized_sketch += std::signbit(sketch[embed_dim - 1 - i]) * pow(2, i);
+            discretized_sketch += std::signbit(sketch[sketch.size() - 1 - i]) * pow(2, i);
         }
-        map[discretized_sketch].push_back(i);
+        sketch_map[discretized_sketch].push_back(i);
     });
-    return map;
 }
 
 void DeBruijnGraph::print(std::ostream &out) const {

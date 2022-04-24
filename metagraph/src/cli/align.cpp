@@ -17,17 +17,7 @@
 #include "config/config.hpp"
 #include "load/load_graph.hpp"
 #include "load/load_annotated_graph.hpp"
-#include "sequence/alphabets.hpp"
-#include "sequence/fasta_io.hpp"
-#include "sketch/edit_distance.hpp"
-#include "sketch/hash_base.hpp"
-#include "sketch/hash_min.hpp"
-#include "sketch/hash_ordered.hpp"
-#include "sketch/hash_weighted.hpp"
-#include "sketch/tensor.hpp"
-#include "sketch/tensor_block.hpp"
-#include "sketch/tensor_embedding.hpp"
-#include "sketch/tensor_slide.hpp"
+
 namespace mtg {
 namespace cli {
 
@@ -294,6 +284,7 @@ std::string format_alignment(const std::string &header,
     return sout;
 }
 using kmer_type = uint64_t;
+using seq_type = uint8_t;
 
 int align_to_graph(Config *config) {
     assert(config);
@@ -305,10 +296,8 @@ int align_to_graph(Config *config) {
     // initialize graph
     auto graph = load_critical_dbg(config->infbase);
 
-    // compute sketches on the graph
+    // initialize alphabet
     ts::init_alphabet("dna4");
-    auto kmer_word_size = ts::int_pow<kmer_type>(ts::alphabet_size, 1);
-    //graph->compute_sketches(4, 3, kmer_word_size);
 
     if (utils::ends_with(config->outfbase, ".gfa")) {
         gfa_map_files(config, files, *graph);
@@ -369,6 +358,12 @@ int align_to_graph(Config *config) {
     }
 
     DBGAlignerConfig aligner_config = initialize_aligner_config(*config);
+
+    // Compute sketches for graph
+    graph->compute_sketches(aligner_config.kmer_word_size,
+                            aligner_config.sketch_dim,
+                            aligner_config.subsequence_len,
+                            aligner_config.seed);
 
     std::unique_ptr<AnnotatedDBG> anno_dbg;
     if (config->infbase_annotators.size()) {
@@ -436,7 +431,6 @@ int align_to_graph(Config *config) {
                     aligner = std::make_unique<LabeledAligner<>>(*aln_graph, aligner_config,
                                                                  anno_dbg->get_annotator());
                 } else {
-//                    aligner = std::make_unique<DBGAligner<>>(*aln_graph, aligner_config);
                     aligner = std::make_unique<DBGAligner<SuffixSeeder<SketchSeeder>, DefaultColumnExtender, LocalAlignmentLess>>(*aln_graph, aligner_config);
                 }
 

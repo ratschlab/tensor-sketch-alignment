@@ -9,7 +9,17 @@
 #include <unordered_map>
 #include <random>
 #include <list>
-
+#include "sequence/alphabets.hpp"
+#include "sequence/fasta_io.hpp"
+#include "sketch/edit_distance.hpp"
+#include "sketch/hash_base.hpp"
+#include "sketch/hash_min.hpp"
+#include "sketch/hash_ordered.hpp"
+#include "sketch/hash_weighted.hpp"
+#include "sketch/tensor.hpp"
+#include "sketch/tensor_block.hpp"
+#include "sketch/tensor_embedding.hpp"
+#include "sketch/tensor_slide.hpp"
 
 namespace utils {
     std::string make_suffix(const std::string &str, const std::string &suffix);
@@ -152,7 +162,9 @@ class DeBruijnGraph : public SequenceGraph {
   public:
     enum Mode { BASIC = 0, CANONICAL, PRIMARY };
 
-    virtual std::unordered_map<uint64_t, std::vector<node_index>> compute_sketches(int embed_dim, int tuple_length,  int kmer_word_size);
+//    virtual std::unordered_map<uint64_t, std::vector<node_index>> compute_sketches(uint64_t kmer_word_size, size_t embed_dim, size_t tuple_length, uint32_t seed);
+    virtual void compute_sketches(uint64_t kmer_word_size, size_t embed_dim, size_t tuple_length, uint32_t seed);
+    std::unordered_map<uint64_t, std::vector<node_index>> sketch_map;
 
     virtual ~DeBruijnGraph() {}
 

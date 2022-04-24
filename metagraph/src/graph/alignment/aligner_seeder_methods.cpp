@@ -6,7 +6,6 @@
 #include "common/utils/template_utils.hpp"
 #include "common/seq_tools/reverse_complement.hpp"
 
-
 namespace mtg {
 namespace graph {
 namespace align {
@@ -81,8 +80,19 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
     size_t k = graph_.get_k();
     assert(k >= config_.min_seed_length);
 
-    if (num_matching_ < config_.min_exact_match * query_.size())
-        return {};
+    ts::Tensor<uint8_t> tensor = ts::Tensor<uint8_t>(config_.kmer_word_size,
+                                                     config_.sketch_dim,
+                                                     config_.subsequence_len,
+                                                     config_.seed);
+//
+//    if (num_matching_ < config_.min_exact_match * query_.size())
+//        return {};
+
+    // Convert query string to integer alphabet
+    std::vector<uint8_t> query_to_int;
+    for (unsigned char c: query_) {
+        query_to_int.push_back(ts::char2int(c));
+    }
 
     std::vector<Seed> seeds;
 
@@ -90,11 +100,22 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
         return seeds;
 
     size_t end_clipping = query_.size() - k;
-    for (size_t i = 0; i < query_nodes_.size(); ++i, --end_clipping) {
-        if (query_nodes_[i] != DeBruijnGraph::npos) {
-            assert(i + k <= query_.size());
+    for (size_t i = 0; i < end_clipping; ++i) {
+        assert(i + k <= query_.size());
+
+        // Get kmer from query vector
+        auto kmer = std::vector<uint8_t>(query_to_int.begin() + i, query_to_int.begin() + i + k);
+        uint64_t discretized_sketch = 0;
+        std::vector<double> kmer_sketch = tensor.compute(kmer);
+        for(int i = 0; i < kmer_sketch.size(); ++i) {
+            // Get sign
+            discretized_sketch += std::signbit(kmer_sketch[kmer_sketch.size() - 1 - i]) * pow(2, i);
+        }
+        // Check if hit
+        if (graph_.sketch_map.count(discretized_sketch)) {
+            // Got a hit
             seeds.emplace_back(query_.substr(i, k),
-                               std::vector<node_index>{ query_nodes_[i] },
+                               std::vector<node_index>(graph_.sketch_map.at(discretized_sketch)),
                                orientation_, 0, i, end_clipping);
         }
     }

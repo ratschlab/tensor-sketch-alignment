@@ -7,7 +7,17 @@
 #include <limits>
 #include <numeric>
 #include <string_view>
-
+#include "sequence/alphabets.hpp"
+#include "sequence/fasta_io.hpp"
+#include "sketch/edit_distance.hpp"
+#include "sketch/hash_base.hpp"
+#include "sketch/hash_min.hpp"
+#include "sketch/hash_ordered.hpp"
+#include "sketch/hash_weighted.hpp"
+#include "sketch/tensor.hpp"
+#include "sketch/tensor_block.hpp"
+#include "sketch/tensor_embedding.hpp"
+#include "sketch/tensor_slide.hpp"
 
 namespace mtg {
 namespace graph {
@@ -59,6 +69,8 @@ struct DBGAlignerConfig {
 
     ScoreMatrix score_matrix;
 
+    bool use_sketches = true;
+
     void print_summary() const;
 
     score_t score_sequences(std::string_view a, std::string_view b) const {
@@ -90,6 +102,14 @@ struct DBGAlignerConfig {
     static ScoreMatrix unit_scoring_matrix(int8_t match_score,
                                            const std::string &alphabet,
                                            const uint8_t *encoding);
+
+    // Sketches
+    using kmer_type = uint64_t;
+    using seq_type = uint8_t;
+    kmer_type kmer_word_size = ts::int_pow<kmer_type>(ts::alphabet_size, 1);
+    uint32_t seed = 1;
+    size_t sketch_dim = 4;
+    size_t subsequence_len = 3;
 };
 
 } // namespace align

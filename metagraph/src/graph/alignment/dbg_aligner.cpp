@@ -706,6 +706,7 @@ DBGAligner<Seeder, Extender, AlignmentCompare>
 #endif
 
 template class DBGAligner<>;
+template class DBGAligner<SuffixSeeder<ExactSeeder>, DefaultColumnExtender, LocalAlignmentLess>;
 template class DBGAligner<SuffixSeeder<UniMEMSeeder>, LabeledExtender>;
 template class DBGAligner<SuffixSeeder<SketchSeeder>, DefaultColumnExtender, LocalAlignmentLess>;
 
