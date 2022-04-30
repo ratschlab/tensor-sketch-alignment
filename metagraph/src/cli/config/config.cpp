@@ -322,6 +322,8 @@ Config::Config(int argc, char *argv[]) {
         } else if (!strcmp(argv[i], "--state")) {
             state = string_to_state(get_value(i++));
             // Custom
+        } else if (!strcmp(argv[i], "--sketch_dim")) {
+            sketch_dim = std::stoi(get_value(i++));
         } else if (!strcmp(argv[i], "--seeder")) {
             seeder = get_value(i++);
         } else if (!strcmp(argv[i], "--anno-type")) {

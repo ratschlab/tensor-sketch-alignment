@@ -54,6 +54,7 @@ DBGAlignerConfig initialize_aligner_config(const Config &config) {
         .alignment_mm_transition_score = config.alignment_mm_transition_score,
         .alignment_mm_transversion_score = config.alignment_mm_transversion_score,
         .score_matrix = DBGAlignerConfig::ScoreMatrix{},
+        .sketch_dim = config.sketch_dim
     };
 
     c.set_scoring_matrix();
@@ -429,6 +430,8 @@ int align_to_graph(Config *config) {
                     aligner = std::make_unique<DBGAligner<>>(*aln_graph, aligner_config);
                 } else if (config->seeder == "sketch") {
                     logger->trace("Using sketch seeder");
+                    logger->trace("Sketch size (aligner): {}", aligner_config.sketch_dim);
+                    logger->trace("Sketch size (config): {}", config->sketch_dim);
                     // Compute sketches for graph
                     graph->compute_sketches(aligner_config.kmer_word_size,
                                             aligner_config.sketch_dim,
