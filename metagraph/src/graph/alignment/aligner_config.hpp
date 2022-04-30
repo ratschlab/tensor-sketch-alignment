@@ -108,8 +108,9 @@ struct DBGAlignerConfig {
     using seq_type = uint8_t;
     kmer_type kmer_word_size = ts::int_pow<kmer_type>(ts::alphabet_size, 1);
     uint32_t seed = 1;
-    size_t sketch_dim = 4;
+    size_t sketch_dim = 20;
     size_t subsequence_len = 3;
+    size_t stride = 1;
 };
 
 } // namespace align

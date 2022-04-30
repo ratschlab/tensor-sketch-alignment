@@ -24,16 +24,6 @@ using namespace mtg::graph::boss;
 using mtg::common::logger;
 
 typedef DBGSuccinct::node_index node_index;
-//
-//std::unordered_map<int, node_index> DBGSuccinct::compute_sketches() {
-//    std::cout << "INSIDE DBG SUCCINT" << std::endl;
-//    call_nodes([&](node_index i) {
-//        std::cout  << i
-//            << "\t" << "Node seq:" << get_node_sequence(i) << "\t" << "Node:" << i
-//            << std::endl;
-//    });
-//    return {};
-//}
 
 DBGSuccinct::DBGSuccinct(size_t k, Mode mode)
       : boss_graph_(std::make_unique<BOSS>(k - 1)),

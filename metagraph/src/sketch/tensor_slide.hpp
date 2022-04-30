@@ -106,7 +106,7 @@ class TensorSlide : public Tensor<seq_type> {
                 }
             }
 
-            if ((i + 1) % stride == 0) { // save a sketch every stride times
+            if (i >= win_len - 1 && (i + 1) % stride == 0) { // save a sketch every stride times
                 sketches.push_back(diff(T1[1].back(), T2[1].back()));
             }
         }

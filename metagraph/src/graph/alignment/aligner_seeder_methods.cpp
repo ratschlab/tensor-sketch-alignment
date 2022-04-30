@@ -80,10 +80,13 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
     size_t k = graph_.get_k();
     assert(k >= config_.min_seed_length);
 
-    ts::Tensor<uint8_t> tensor = ts::Tensor<uint8_t>(config_.kmer_word_size,
-                                                     config_.sketch_dim,
-                                                     config_.subsequence_len,
-                                                     config_.seed);
+    ts::TensorSlide<uint8_t> tensor = ts::TensorSlide<uint8_t>(config_.kmer_word_size,
+                                                               config_.sketch_dim,
+                                                               config_.subsequence_len,
+                                                               graph_.get_k(),
+                                                               config_.stride,
+                                                               config_.seed);
+
 //
 //    if (num_matching_ < config_.min_exact_match * query_.size())
 //        return {};
@@ -93,24 +96,22 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
     for (unsigned char c: query_) {
         query_to_int.push_back(ts::char2int(c));
     }
-
     std::vector<Seed> seeds;
-
     if (config_.max_seed_length < k)
         return seeds;
 
+    std::vector<std::vector<double>> sketches = tensor.compute(query_to_int);
     size_t end_clipping = query_.size() - k;
-    for (size_t i = 0; i < end_clipping; ++i) {
-        assert(i + k <= query_.size());
-
-        // Get kmer from query vector
-        auto kmer = std::vector<uint8_t>(query_to_int.begin() + i, query_to_int.begin() + i + k);
+    int num_sketches = sketches.size();
+    for(int i = 0; i < num_sketches; ++i) {
+        auto sketch = sketches[i];
         uint64_t discretized_sketch = 0;
-        std::vector<double> kmer_sketch = tensor.compute(kmer);
-        for(int i = 0; i < kmer_sketch.size(); ++i) {
+
+        for(int j = 0; j < sketch.size(); ++j) {
             // Get sign
-            discretized_sketch += std::signbit(kmer_sketch[kmer_sketch.size() - 1 - i]) * pow(2, i);
+            discretized_sketch += std::signbit(sketch[sketch.size() - 1 - j]) * pow(2, j);
         }
+
         // Check if hit
         if (graph_.sketch_map.count(discretized_sketch)) {
             // Got a hit
@@ -119,7 +120,6 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                                orientation_, 0, i, end_clipping);
         }
     }
-
     return seeds;
 }
 

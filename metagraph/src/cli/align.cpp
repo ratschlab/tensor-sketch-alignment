@@ -359,12 +359,6 @@ int align_to_graph(Config *config) {
 
     DBGAlignerConfig aligner_config = initialize_aligner_config(*config);
 
-    // Compute sketches for graph
-    graph->compute_sketches(aligner_config.kmer_word_size,
-                            aligner_config.sketch_dim,
-                            aligner_config.subsequence_len,
-                            aligner_config.seed);
-
     std::unique_ptr<AnnotatedDBG> anno_dbg;
     if (config->infbase_annotators.size()) {
         assert(config->infbase_annotators.size() == 1);
@@ -430,7 +424,17 @@ int align_to_graph(Config *config) {
                 if (anno_dbg) {
                     aligner = std::make_unique<LabeledAligner<>>(*aln_graph, aligner_config,
                                                                  anno_dbg->get_annotator());
-                } else {
+                } else if (config->seeder == "default"){
+                    logger->trace("Using default seeder");
+                    aligner = std::make_unique<DBGAligner<>>(*aln_graph, aligner_config);
+                } else if (config->seeder == "sketch") {
+                    logger->trace("Using sketch seeder");
+                    // Compute sketches for graph
+                    graph->compute_sketches(aligner_config.kmer_word_size,
+                                            aligner_config.sketch_dim,
+                                            aligner_config.subsequence_len,
+                                            aligner_config.stride,
+                                            aligner_config.seed);
                     aligner = std::make_unique<DBGAligner<SuffixSeeder<SketchSeeder>, DefaultColumnExtender, LocalAlignmentLess>>(*aln_graph, aligner_config);
                 }
 

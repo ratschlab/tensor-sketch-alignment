@@ -321,7 +321,9 @@ Config::Config(int argc, char *argv[]) {
             bloom_max_num_hash_functions = atoi(get_value(i++));
         } else if (!strcmp(argv[i], "--state")) {
             state = string_to_state(get_value(i++));
-
+            // Custom
+        } else if (!strcmp(argv[i], "--seeder")) {
+            seeder = get_value(i++);
         } else if (!strcmp(argv[i], "--anno-type")) {
             anno_type = string_to_annotype(get_value(i++));
         } else if (!strcmp(argv[i], "--graph")) {
