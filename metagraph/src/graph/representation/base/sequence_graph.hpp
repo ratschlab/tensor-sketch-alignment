@@ -162,9 +162,14 @@ class DeBruijnGraph : public SequenceGraph {
   public:
     enum Mode { BASIC = 0, CANONICAL, PRIMARY };
 
-//    virtual std::unordered_map<uint64_t, std::vector<node_index>> compute_sketches(uint64_t kmer_word_size, size_t embed_dim, size_t tuple_length, uint32_t seed);
-    virtual void compute_sketches(uint64_t kmer_word_size, size_t embed_dim, size_t tuple_length, size_t stride, uint32_t seed);
-    std::unordered_map<uint64_t, std::vector<node_index>> sketch_map;
+    virtual void compute_sketches(uint64_t kmer_word_size,
+                                  size_t embed_dim,
+                                  size_t tuple_length,
+                                  size_t stride,
+                                  uint32_t seed,
+                                  uint32_t subsampled_sketch_dim,
+                                  uint32_t n_times_subsample);
+    std::vector<std::unordered_map<uint64_t, std::vector<node_index>>> sketch_maps; // multiple maps for undersampling
 
     virtual ~DeBruijnGraph() {}
 

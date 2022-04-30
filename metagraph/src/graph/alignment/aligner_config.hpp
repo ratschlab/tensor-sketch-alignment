@@ -111,6 +111,8 @@ struct DBGAlignerConfig {
     size_t sketch_dim = 20;
     size_t subsequence_len = 3;
     size_t stride = 1;
+    uint32_t subsampled_sketch_dim = 100;
+    uint32_t n_times_subsample = 10;
 };
 
 } // namespace align

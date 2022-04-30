@@ -322,6 +322,11 @@ Config::Config(int argc, char *argv[]) {
         } else if (!strcmp(argv[i], "--state")) {
             state = string_to_state(get_value(i++));
             // Custom
+
+        } else if (!strcmp(argv[i], "--subsampled_sketch_dim")) {
+            subsampled_sketch_dim = std::stoi(get_value(i++));
+        } else if (!strcmp(argv[i], "--n_times_subsample")) {
+            n_times_subsample = std::stoi(get_value(i++));
         } else if (!strcmp(argv[i], "--sketch_dim")) {
             sketch_dim = std::stoi(get_value(i++));
         } else if (!strcmp(argv[i], "--seeder")) {

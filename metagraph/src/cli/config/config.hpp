@@ -29,6 +29,8 @@ class Config {
     size_t sketch_dim = 20;
     size_t subsequence_len = 3;
     size_t stride = 1;
+    uint32_t subsampled_sketch_dim = 5;
+    uint32_t n_times_subsample = 5;
 
     bool print_graph = false;
     bool print_graph_internal_repr = false;

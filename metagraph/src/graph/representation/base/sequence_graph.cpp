@@ -457,8 +457,20 @@ void DeBruijnGraph
     });
 }
 
-void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size, size_t embed_dim, size_t tuple_length, size_t stride, uint32_t seed) {
-    ts::TensorSlide<uint8_t> tensor = ts::TensorSlide<uint8_t>(kmer_word_size, embed_dim, tuple_length, get_k(), stride, seed);
+void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
+                                     size_t embed_dim,
+                                     size_t tuple_length,
+                                     size_t stride,
+                                     uint32_t seed,
+                                     uint32_t subsampled_sketch_dim,
+                                     uint32_t n_times_subsample) {
+    ts::TensorSlide<uint8_t> tensor = ts::TensorSlide<uint8_t>(kmer_word_size,
+                                                               embed_dim,
+                                                               tuple_length,
+                                                               get_k(),
+                                                               stride,
+                                                               seed);
+    sketch_maps = std::vector<std::unordered_map<uint64_t, std::vector<node_index>>>(n_times_subsample);
     call_sequences([&](const std::string& s, const std::vector<node_index>& v) {
         std::vector<uint8_t> node_sequence_to_int;
         for (unsigned char c: s) {
@@ -466,16 +478,32 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size, size_t embed_dim, 
                 node_sequence_to_int.push_back(ts::char2int(c));
             }
         }
-        std::vector<std::vector<double>> sketches = tensor.compute(node_sequence_to_int);
+        // Compute sketches
+        std::vector <std::vector<double>> sketches = tensor.compute(node_sequence_to_int);
         int n_nodes = v.size();
-        for(int i = 0; i < n_nodes; ++i) {
-            uint64_t discretized_sketch = 0;
-            std::vector<double> sketch = sketches[i];
-            for (int i = 0; i < sketch.size(); ++i) {
-                // Get sign
-                discretized_sketch += std::signbit(sketch[sketch.size() - 1 - i]) * pow(2, i);
+        for (int i = 0; i < n_nodes; ++i) {
+            for (int n_repeat = 0; n_repeat < n_times_subsample; n_repeat++) {
+                // For each node, subsample n_times_subsample times
+                uint64_t discretized_sketch = 0;
+                std::vector<double> sketch = sketches[i];
+
+                // Subsample sketch
+                std::vector<double> subsampled_sketch;
+                std::sample(sketch.begin(),
+                            sketch.end(),
+                            std::back_inserter(subsampled_sketch),
+                            subsampled_sketch_dim,
+                            std::mt19937{std::random_device{}()});
+
+                // Discretize
+                for (int j = 0; j < subsampled_sketch_dim; ++j) {
+                    discretized_sketch +=
+                            std::signbit(subsampled_sketch[subsampled_sketch.size() - 1 - j]) * pow(2, j);
+                }
+
+                // Save to sketch maps and repeat
+                sketch_maps[n_repeat][discretized_sketch].push_back(v[i]);
             }
-            sketch_map[discretized_sketch].push_back(v[i]);
         }
     });
 }

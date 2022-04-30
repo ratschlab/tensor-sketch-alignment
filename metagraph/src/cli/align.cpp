@@ -54,7 +54,9 @@ DBGAlignerConfig initialize_aligner_config(const Config &config) {
         .alignment_mm_transition_score = config.alignment_mm_transition_score,
         .alignment_mm_transversion_score = config.alignment_mm_transversion_score,
         .score_matrix = DBGAlignerConfig::ScoreMatrix{},
-        .sketch_dim = config.sketch_dim
+        .sketch_dim = config.sketch_dim,
+        .subsampled_sketch_dim = config.subsampled_sketch_dim,
+        .n_times_subsample = config.n_times_subsample
     };
 
     c.set_scoring_matrix();
@@ -421,7 +423,7 @@ int align_to_graph(Config *config) {
                 }
 
                 std::unique_ptr<IDBGAligner> aligner;
-
+                logger->trace("Number of nodes: {}", graph->max_index());
                 if (anno_dbg) {
                     aligner = std::make_unique<LabeledAligner<>>(*aln_graph, aligner_config,
                                                                  anno_dbg->get_annotator());
@@ -432,12 +434,16 @@ int align_to_graph(Config *config) {
                     logger->trace("Using sketch seeder");
                     logger->trace("Sketch size (aligner): {}", aligner_config.sketch_dim);
                     logger->trace("Sketch size (config): {}", config->sketch_dim);
+                    logger->trace("Subsampling sketch size: {}", config->subsampled_sketch_dim);
+                    logger->trace("Times to subsample: {}", config->n_times_subsample);
                     // Compute sketches for graph
                     graph->compute_sketches(aligner_config.kmer_word_size,
                                             aligner_config.sketch_dim,
                                             aligner_config.subsequence_len,
                                             aligner_config.stride,
-                                            aligner_config.seed);
+                                            aligner_config.seed,
+                                            aligner_config.subsampled_sketch_dim,
+                                            aligner_config.n_times_subsample);
                     aligner = std::make_unique<DBGAligner<SuffixSeeder<SketchSeeder>, DefaultColumnExtender, LocalAlignmentLess>>(*aln_graph, aligner_config);
                 }
 
