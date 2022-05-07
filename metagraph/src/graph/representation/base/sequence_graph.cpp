@@ -493,7 +493,7 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                             sketch.end(),
                             std::back_inserter(subsampled_sketch),
                             subsampled_sketch_dim,
-                            std::mt19937{std::random_device{}()});
+                            std::mt19937(seed));
 
                 // Discretize
                 for (int j = 0; j < subsampled_sketch_dim; ++j) {
