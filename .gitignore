@@ -1,3 +1,4 @@
+data/
 *.fa
 *.fai
 !metagraph/tests/data/*.fa
