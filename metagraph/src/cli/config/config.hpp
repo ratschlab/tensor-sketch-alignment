@@ -27,7 +27,7 @@ class Config {
     kmer_type kmer_word_size = ts::int_pow<kmer_type>(ts::alphabet_size, 1);
     uint32_t seed = 1;
     size_t sketch_dim = 20;
-    size_t subsequence_len = 3;
+    size_t subsequence_len = 2;
     size_t stride = 1;
     uint32_t subsampled_sketch_dim = 5;
     uint32_t n_times_subsample = 5;

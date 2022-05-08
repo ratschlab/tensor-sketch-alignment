@@ -77,20 +77,20 @@ auto ExactSeeder::get_seeds() const -> std::vector<Seed> {
 }
 
 auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
-    size_t k = graph_.get_k();
+    size_t k = graph_.get_k() - 1;
     assert(k >= config_.min_seed_length);
 
     ts::TensorSlide<uint8_t> tensor = ts::TensorSlide<uint8_t>(config_.kmer_word_size,
                                                                config_.sketch_dim,
                                                                config_.subsequence_len,
-                                                               graph_.get_k(),
+                                                               k,
                                                                config_.stride,
                                                                config_.seed);
 
 //
 //    if (num_matching_ < config_.min_exact_match * query_.size())
 //        return {};
-    size_t end_clipping = query_.size() - k;
+    size_t end_clipping = query_.size() - k - 1;
 
     // Convert query string to integer alphabet
     std::vector<uint8_t> query_to_int;
@@ -105,6 +105,7 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
     int num_sketches = sketches.size();
     // Repeat multiple times
     for (int i = 0; i < num_sketches; ++i) {
+        assert(i + k <= query_.size());
         std::unordered_set<node_index> matches;
         for (int n_repeat = 0; n_repeat < config_.n_times_subsample; n_repeat++) {
             // For each kmer, subsample n_times_subsample times
@@ -117,17 +118,20 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                         sketch.end(),
                         std::back_inserter(subsampled_sketch),
                         config_.subsampled_sketch_dim,
-                        std::mt19937(config_.seed));
+                        std::mt19937{std::random_device{}()});
 
             for (int j = 0; j < subsampled_sketch.size(); ++j) {
-                discretized_sketch += std::signbit(subsampled_sketch[subsampled_sketch.size() - 1 - j]) * pow(2, j);
+                double bit = subsampled_sketch[subsampled_sketch.size() - 1 - j];
+                if(std::abs(bit) < 1e-15)
+                    bit = +0.0f;
+                discretized_sketch += std::signbit(bit) * pow(2, j);
             }
 
             // Check if hit in any of the n_times_subsample dicts
-            for(int k = 0; k < config_.n_times_subsample; ++k) {
-                if (graph_.sketch_maps[k].count(discretized_sketch)) {
+            for(int n_r = 0; n_r < config_.n_times_subsample; ++n_r) {
+                if (graph_.sketch_maps[n_r].count(discretized_sketch)) {
                     // Got a hit
-                    auto matched_nodes = graph_.sketch_maps[k].at(discretized_sketch);
+                    auto matched_nodes = graph_.sketch_maps[n_r].at(discretized_sketch);
                     matches.insert(matched_nodes.begin(), matched_nodes.end());
                 }
             }
@@ -136,7 +140,6 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                            std::vector<node_index>(matches.begin(), matches.end()),
                            orientation_, 0, i, end_clipping);
     }
-//    auto seeds2 = std::vector<Seed>(seeds.begin(), seeds.begin() + 5);
     return seeds;
 }
 

@@ -467,11 +467,15 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
     ts::TensorSlide<uint8_t> tensor = ts::TensorSlide<uint8_t>(kmer_word_size,
                                                                embed_dim,
                                                                tuple_length,
-                                                               get_k(),
+                                                               get_k() - 1,
                                                                stride,
                                                                seed);
     sketch_maps = std::vector<std::unordered_map<uint64_t, std::vector<node_index>>>(n_times_subsample);
     call_sequences([&](const std::string& s, const std::vector<node_index>& v) {
+        std::cout << s << std::endl;
+        for(auto vi : v)
+            std::cout << vi << " ";
+        std::cout << std::endl;
         std::vector<uint8_t> node_sequence_to_int;
         for (unsigned char c: s) {
             if(c != '$') {
@@ -493,12 +497,25 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                             sketch.end(),
                             std::back_inserter(subsampled_sketch),
                             subsampled_sketch_dim,
-                            std::mt19937(seed));
-
+                            std::mt19937{std::random_device{}()});
+                // DEBUG
+                std::cout << "Node: " << v[i] << std::endl;
+                std::cout << "sketch: " << std::endl;
+                for(auto d : sketch) {
+                    std::cout << d << " ";
+                }
+                std::cout << std::endl << "subsampled: " << std::endl;
+                for(auto d : subsampled_sketch) {
+                    std::cout << d << " ";
+                }
+                std::cout << std::endl;
                 // Discretize
                 for (int j = 0; j < subsampled_sketch_dim; ++j) {
+                    double bit = subsampled_sketch[subsampled_sketch.size() - 1 - j];
+                    if(std::abs(bit) < 1e-15)
+                        bit = +0.0f;
                     discretized_sketch +=
-                            std::signbit(subsampled_sketch[subsampled_sketch.size() - 1 - j]) * pow(2, j);
+                            std::signbit(bit) * pow(2, j);
                 }
 
                 // Save to sketch maps and repeat

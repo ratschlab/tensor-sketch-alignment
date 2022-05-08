@@ -1012,7 +1012,7 @@ void DBGSuccinct::print(std::ostream &out) const {
     for (uint64_t i = 1; i <= boss.num_edges(); i++) {
         BOSS::TAlphabet w = boss.get_W(i);
         assert(w != boss.alph_size);
-        out << i << "HERE:" << "\t" << boss.get_last(i)
+        out << i << "\t" << boss.get_last(i)
                  << "\t" << boss.get_node_str(i)
                  << "\t" << boss.decode(w % boss.alph_size)
                          << (w > boss.alph_size ? "-" : "");

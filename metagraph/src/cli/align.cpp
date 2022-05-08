@@ -298,7 +298,7 @@ int align_to_graph(Config *config) {
 
     // initialize graph
     auto graph = load_critical_dbg(config->infbase);
-
+    graph->print(std::cout);
     // initialize alphabet
     ts::init_alphabet("dna4");
 
