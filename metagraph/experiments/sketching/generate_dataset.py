@@ -30,12 +30,12 @@ QUERY_SEQS = "query_strings.fa"
 METAGRAPH_PATH = "/Users/alex/metagraph/metagraph/build/metagraph"
 ALPHABET = ['A', 'C', 'T', 'G']
 
-GRAPH_SEQ_LEN = 10
+GRAPH_SEQ_LEN = 100
 MUTATION_RATE = 0.0
 
-NUM_QUERY_SEQS = 10
+NUM_QUERY_SEQS = 1
 QUERY_STRING_LEN = 8
-MAX_K = QUERY_STRING_LEN
+MAX_K = 10
 
 if __name__ == '__main__':
     assert os.path.exists(DATASET_DIR), "Please create dataset directory"

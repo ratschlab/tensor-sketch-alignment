@@ -317,11 +317,6 @@ void generate_sequences(const DeBruijnGraph &graph,
         }
         spellings.push_back(spelling);
         paths.push_back(nodes);
-
-//        std::cout << spelling << std::endl;
-//        for (auto x: nodes) {
-//            std::cout << x << " ";
-//        }
     }
 }
 
@@ -497,6 +492,7 @@ int align_to_graph(Config *config) {
                                             aligner_config.n_times_subsample);
                     aligner = std::make_unique<DBGAligner<SuffixSeeder<SketchSeeder>, DefaultColumnExtender, LocalAlignmentLess>>(*aln_graph, aligner_config);
                 }
+
                 aligner->align_batch(batch,
                     [&](const std::string &header, AlignmentResults&& paths) {
                         const auto &res = format_alignment(header, paths, *graph, *config);
@@ -504,6 +500,9 @@ int align_to_graph(Config *config) {
                         *out << res;
                     }
                 );
+
+                //DEBUG
+
             });
         };
 

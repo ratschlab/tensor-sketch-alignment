@@ -70,7 +70,6 @@ class DBGAligner : public IDBGAligner {
     DBGAlignerConfig config_;
 
     typedef std::vector<std::pair<std::shared_ptr<ISeeder>, std::shared_ptr<ISeeder>>> BatchSeeders;
-
     BatchSeeders
     virtual build_seeders(const std::vector<Query> &seq_batch,
                           const std::vector<AlignmentResults> &wrapped_seqs) const;

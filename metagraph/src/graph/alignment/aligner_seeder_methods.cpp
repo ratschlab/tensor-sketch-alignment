@@ -86,6 +86,7 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                                                                k,
                                                                config_.stride,
                                                                config_.seed);
+    auto rnd = std::mt19937(config_.seed);
 
 //
 //    if (num_matching_ < config_.min_exact_match * query_.size())
@@ -118,7 +119,7 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                         sketch.end(),
                         std::back_inserter(subsampled_sketch),
                         config_.subsampled_sketch_dim,
-                        std::mt19937{std::random_device{}()});
+                        rnd);
 
             for (int j = 0; j < subsampled_sketch.size(); ++j) {
                 double bit = subsampled_sketch[subsampled_sketch.size() - 1 - j];
