@@ -62,7 +62,9 @@ class DBGAligner : public IDBGAligner {
     const DeBruijnGraph& get_graph() const override { return graph_; }
     const DBGAlignerConfig& get_config() const override { return config_; }
 
-  protected:
+
+
+protected:
     typedef typename Seeder::node_index node_index;
     typedef Alignment::score_t score_t;
 

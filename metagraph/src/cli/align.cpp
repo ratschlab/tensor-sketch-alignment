@@ -289,19 +289,37 @@ std::string format_alignment(const std::string &header,
 using kmer_type = uint64_t;
 using seq_type = uint8_t;
 
+string mutate(string s, int mutation_rate, std::vector<char> alphabet) {
+    std::string mutated_string = s;
+    for(int i = 0; i < s.size(); ++i) {
+        if (rand() % 100 < mutation_rate) {
+            // mutate
+            char new_c = alphabet[rand() % alphabet.size()];
+            while(new_c == s[i]) {
+                new_c = alphabet[rand() % alphabet.size()];
+            }
+
+            mutated_string[i] = new_c;
+        }
+    }
+    return mutated_string;
+}
 
 void generate_sequences(const DeBruijnGraph &graph,
                         size_t max_path_size,
                         size_t num_paths,
+                        int mutation_rate,
+                        std::vector<char> alphabet,
                         std::vector<std::string>& spellings,
                         std::vector<std::vector<uint64_t>>& paths) {
-    std::mt19937 gen(32);
+    std::mt19937 gen(0);
     std::uniform_int_distribution<uint64_t> dis(1, graph.num_nodes());
 
 
     for(int n_path = 0; n_path < num_paths; ++n_path) {
-        uint64_t root_node = dis(gen); // change this
+        uint64_t root_node = dis(gen);
         std::string root_node_seq = graph.get_node_sequence(root_node);
+
         std::vector <uint64_t> nodes;
         std::string spelling;
 
@@ -315,7 +333,13 @@ void generate_sequences(const DeBruijnGraph &graph,
                         spelling += c;
                     });
         }
-        spellings.push_back(spelling);
+
+        // TODO: Make this less ugly
+        if (spelling.find("$") != string::npos) {
+            n_path--;
+            continue;
+        }
+        spellings.push_back(mutate(spelling, mutation_rate, alphabet));
         paths.push_back(nodes);
     }
 }
@@ -324,7 +348,6 @@ void generate_sequences(const DeBruijnGraph &graph,
 int align_to_graph(Config *config) {
     assert(config);
 
-    const auto &files = config->fnames;
 
     assert(config->infbase.size());
 
@@ -335,14 +358,23 @@ int align_to_graph(Config *config) {
     // DEBUG
     std::vector<std::string> spellings;
     std::vector<std::vector<uint64_t>> paths;
-    generate_sequences(*graph, 15, 10, spellings, paths);
-    for(int i = 0; i < 10; ++i) {
+    std::ofstream out("/Users/alex/metagraph/metagraph/experiments/sketching/data/generated.fa");
+    int num_paths = 100;
+    generate_sequences(*graph, 15, num_paths, 90, {'A', 'T', 'G', 'C'},spellings, paths);
+    for(int i = 0; i < num_paths; ++i) {
         std::cout << spellings[i] << std::endl;
         for(auto x : paths[i]) {
             std::cout << x << " ";
         }
         std::cout << std::endl;
+        out << ">Q" << i << std::endl;
+        out << spellings[i] << std::endl;
     }
+    out.close();
+    config->fnames = {"/Users/alex/metagraph/metagraph/experiments/sketching/data/generated.fa"};
+    const auto &files = config->fnames;
+
+
     // DEBUG END
 
     // initialize alphabet
@@ -501,12 +533,77 @@ int align_to_graph(Config *config) {
                     }
                 );
 
-                //DEBUG
 
             });
         };
 
         thread_pool.join();
+        if (config->seeder == "sketch") {
+            // Compute recall
+            auto rnd = std::mt19937(config->seed);
+            int recalled_paths = 0;
+            for (int i = 0; i < num_paths; ++i) {
+                // For each path
+                auto path = paths[i];
+                auto spelling = spellings[i];
+
+                // Sketch it again (this is so bad)
+                size_t k = graph->get_k() - 1;
+                ts::TensorSlide <uint8_t> tensor = ts::TensorSlide<uint8_t>(config->kmer_word_size,
+                                                                            config->sketch_dim,
+                                                                            config->subsequence_len,
+                                                                            k,
+                                                                            config->stride,
+                                                                            config->seed);
+                std::vector <uint8_t> query_to_int;
+                query_to_int.clear();
+                for (unsigned char c: spelling) {
+                    query_to_int.push_back(ts::char2int(c));
+                }
+
+                std::vector <std::vector<double>> sketches = tensor.compute(query_to_int);
+                int num_sketches = sketches.size();
+                bool found = false;
+
+                for (int i = 0; i < num_sketches && !found; ++i) {
+                    for (int n_repeat = 0; n_repeat < config->n_times_subsample && !found; n_repeat++) {
+                        uint64_t discretized_sketch = 0;
+                        std::vector<double> sketch = sketches[i];
+                        // Subsample sketch
+                        std::vector<double> subsampled_sketch;
+                        std::sample(sketch.begin(),
+                                    sketch.end(),
+                                    std::back_inserter(subsampled_sketch),
+                                    config->subsampled_sketch_dim,
+                                    rnd);
+
+                        for (int j = 0; j < subsampled_sketch.size(); ++j) {
+                            double bit = subsampled_sketch[subsampled_sketch.size() - 1 - j];
+                            if (std::abs(bit) < 1e-15)
+                                bit = +0.0f;
+                            discretized_sketch += std::signbit(bit) * pow(2, j);
+                        }
+
+                        // Check if hit in any of the n_times_subsample dicts
+                        for (int n_r = 0; n_r < config->n_times_subsample && !found; ++n_r) {
+                            if (graph->sketch_maps[n_r].count(discretized_sketch)) {
+                                // Got a hit in the graph, check if it s a good node
+                                auto matched_nodes = graph->sketch_maps[n_r].at(discretized_sketch);
+                                if (std::count(matched_nodes.begin(), matched_nodes.end(), path[i])) {
+                                    // we recalled
+                                    recalled_paths++;
+                                    found = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            std::cout << recalled_paths << " " << num_paths << std::endl;
+            std::cout << (float) recalled_paths / num_paths << std::endl;
+            // End
+        }
 
         logger->trace("File {} processed in {} sec, "
                       "num batches: {}, batch size: {} KB, "

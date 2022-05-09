@@ -24,7 +24,8 @@ class Config {
     // Sketches
     using kmer_type = uint64_t;
     using seq_type = uint8_t;
-    kmer_type kmer_word_size = ts::int_pow<kmer_type>(ts::alphabet_size, 1);
+//    kmer_type kmer_word_size = ts::int_pow<kmer_type>(ts::alphabet_size, 1);
+    kmer_type kmer_word_size = 4;
     uint32_t seed = 1;
     size_t sketch_dim = 20;
     size_t subsequence_len = 2;
