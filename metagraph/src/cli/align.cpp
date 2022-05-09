@@ -289,6 +289,43 @@ std::string format_alignment(const std::string &header,
 using kmer_type = uint64_t;
 using seq_type = uint8_t;
 
+
+void generate_sequences(const DeBruijnGraph &graph,
+                        size_t max_path_size,
+                        size_t num_paths,
+                        std::vector<std::string>& spellings,
+                        std::vector<std::vector<uint64_t>>& paths) {
+    std::mt19937 gen(32);
+    std::uniform_int_distribution<uint64_t> dis(1, graph.num_nodes());
+
+
+    for(int n_path = 0; n_path < num_paths; ++n_path) {
+        uint64_t root_node = dis(gen); // change this
+        std::string root_node_seq = graph.get_node_sequence(root_node);
+        std::vector <uint64_t> nodes;
+        std::string spelling;
+
+        nodes.push_back(root_node);
+        spelling = root_node_seq;
+        for (int i = 1; i < max_path_size; ++i) {
+            graph.call_outgoing_kmers(
+                    nodes.back(),
+                    [&](uint64_t target, char c) {
+                        nodes.push_back(target);
+                        spelling += c;
+                    });
+        }
+        spellings.push_back(spelling);
+        paths.push_back(nodes);
+
+//        std::cout << spelling << std::endl;
+//        for (auto x: nodes) {
+//            std::cout << x << " ";
+//        }
+    }
+}
+
+
 int align_to_graph(Config *config) {
     assert(config);
 
@@ -299,6 +336,20 @@ int align_to_graph(Config *config) {
     // initialize graph
     auto graph = load_critical_dbg(config->infbase);
     graph->print(std::cout);
+
+    // DEBUG
+    std::vector<std::string> spellings;
+    std::vector<std::vector<uint64_t>> paths;
+    generate_sequences(*graph, 15, 10, spellings, paths);
+    for(int i = 0; i < 10; ++i) {
+        std::cout << spellings[i] << std::endl;
+        for(auto x : paths[i]) {
+            std::cout << x << " ";
+        }
+        std::cout << std::endl;
+    }
+    // DEBUG END
+
     // initialize alphabet
     ts::init_alphabet("dna4");
 
