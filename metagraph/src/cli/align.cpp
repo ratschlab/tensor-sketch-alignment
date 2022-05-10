@@ -354,14 +354,14 @@ int align_to_graph(Config *config) {
 
     // initialize graph
     auto graph = load_critical_dbg(config->infbase);
-//    graph->print(std::cout);
+    graph->print(std::cout);
 
     // DEBUG
     std::vector<std::string> spellings;
     std::vector<std::vector<uint64_t>> paths;
     std::ofstream out("/Users/alex/metagraph/metagraph/experiments/sketching/data/generated.fa");
-    int num_paths = 100;
-    generate_sequences(*graph, 50, num_paths, config->mutation_rate, {'A', 'T', 'G', 'C'}, spellings, paths);
+    int num_paths = 10;
+    generate_sequences(*graph, 6, num_paths, config->mutation_rate, {'A', 'T', 'G', 'C'}, spellings, paths);
     for(int i = 0; i < num_paths; ++i) {
         std::cout << spellings[i] << std::endl;
         for(auto x : paths[i]) {

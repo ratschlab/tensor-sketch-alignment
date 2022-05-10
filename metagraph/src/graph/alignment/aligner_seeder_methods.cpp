@@ -77,7 +77,7 @@ auto ExactSeeder::get_seeds() const -> std::vector<Seed> {
 }
 
 auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
-    size_t k = graph_.get_k() - 1;
+    size_t k = graph_.get_k();
     assert(k >= config_.min_seed_length);
 
     ts::TensorSlide<uint8_t> tensor = ts::TensorSlide<uint8_t>(config_.kmer_word_size,
@@ -88,10 +88,7 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                                                                config_.seed);
     auto rnd = std::mt19937(config_.seed);
 
-//
-//    if (num_matching_ < config_.min_exact_match * query_.size())
-//        return {};
-    size_t end_clipping = query_.size() - k - 1;
+    size_t end_clipping = query_.size() - k;
 
     // Convert query string to integer alphabet
     std::vector<uint8_t> query_to_int;
@@ -105,7 +102,7 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
     std::vector<std::vector<double>> sketches = tensor.compute(query_to_int);
     int num_sketches = sketches.size();
     // Repeat multiple times
-    for (int i = 0; i < num_sketches; ++i) {
+    for (int i = 0; i < num_sketches; ++i, --end_clipping) {
         assert(i + k <= query_.size());
         std::unordered_set<node_index> matches;
         for (int n_repeat = 0; n_repeat < config_.n_times_subsample; n_repeat++) {
