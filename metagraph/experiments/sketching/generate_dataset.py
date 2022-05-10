@@ -35,7 +35,7 @@ MUTATION_RATE = 0.0
 
 NUM_QUERY_SEQS = 1
 QUERY_STRING_LEN = 8
-MAX_K = 10
+MAX_K = 50
 
 if __name__ == '__main__':
     assert os.path.exists(DATASET_DIR), "Please create dataset directory"

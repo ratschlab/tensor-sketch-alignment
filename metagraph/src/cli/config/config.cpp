@@ -321,8 +321,9 @@ Config::Config(int argc, char *argv[]) {
             bloom_max_num_hash_functions = atoi(get_value(i++));
         } else if (!strcmp(argv[i], "--state")) {
             state = string_to_state(get_value(i++));
-            // Custom
-
+            // sketches
+        } else if (!strcmp(argv[i], "--mutation-rate")) {
+            mutation_rate = std::stoi(get_value(i++));
         } else if (!strcmp(argv[i], "--subsampled_sketch_dim")) {
             subsampled_sketch_dim = std::stoi(get_value(i++));
         } else if (!strcmp(argv[i], "--n_times_subsample")) {

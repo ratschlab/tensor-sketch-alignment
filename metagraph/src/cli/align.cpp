@@ -325,7 +325,7 @@ void generate_sequences(const DeBruijnGraph &graph,
 
         nodes.push_back(root_node);
         spelling = root_node_seq;
-        for (int i = 1; i < max_path_size; ++i) {
+        while(spelling.size() < max_path_size && graph.outdegree(nodes.back()) > 0) {
             graph.call_outgoing_kmers(
                     nodes.back(),
                     [&](uint64_t target, char c) {
@@ -335,10 +335,11 @@ void generate_sequences(const DeBruijnGraph &graph,
         }
 
         // TODO: Make this less ugly
-        if (spelling.find("$") != string::npos) {
+        if (spelling.find("$") != string::npos || spelling.size() != max_path_size) {
             n_path--;
             continue;
         }
+
         spellings.push_back(mutate(spelling, mutation_rate, alphabet));
         paths.push_back(nodes);
     }
@@ -353,14 +354,14 @@ int align_to_graph(Config *config) {
 
     // initialize graph
     auto graph = load_critical_dbg(config->infbase);
-    graph->print(std::cout);
+//    graph->print(std::cout);
 
     // DEBUG
     std::vector<std::string> spellings;
     std::vector<std::vector<uint64_t>> paths;
     std::ofstream out("/Users/alex/metagraph/metagraph/experiments/sketching/data/generated.fa");
     int num_paths = 100;
-    generate_sequences(*graph, 15, num_paths, 90, {'A', 'T', 'G', 'C'},spellings, paths);
+    generate_sequences(*graph, 50, num_paths, config->mutation_rate, {'A', 'T', 'G', 'C'}, spellings, paths);
     for(int i = 0; i < num_paths; ++i) {
         std::cout << spellings[i] << std::endl;
         for(auto x : paths[i]) {
@@ -404,6 +405,7 @@ int align_to_graph(Config *config) {
     }
 
     Timer timer;
+    float alignment_time;
     ThreadPool thread_pool(get_num_threads());
     std::mutex print_mutex;
 
@@ -524,7 +526,7 @@ int align_to_graph(Config *config) {
                                             aligner_config.n_times_subsample);
                     aligner = std::make_unique<DBGAligner<SuffixSeeder<SketchSeeder>, DefaultColumnExtender, LocalAlignmentLess>>(*aln_graph, aligner_config);
                 }
-
+                Timer start_alignment;
                 aligner->align_batch(batch,
                     [&](const std::string &header, AlignmentResults&& paths) {
                         const auto &res = format_alignment(header, paths, *graph, *config);
@@ -532,8 +534,7 @@ int align_to_graph(Config *config) {
                         *out << res;
                     }
                 );
-
-
+                alignment_time = start_alignment.elapsed();
             });
         };
 
@@ -600,8 +601,15 @@ int align_to_graph(Config *config) {
                     }
                 }
             }
-            std::cout << recalled_paths << " " << num_paths << std::endl;
-            std::cout << (float) recalled_paths / num_paths << std::endl;
+            // TODO: So ugly...
+            std::cout << "{"
+                      << "\"recall\":" << (float) recalled_paths / num_paths
+                      << ","
+                      << "\"avg_time\":" << alignment_time / num_paths
+                      << ","
+                      << "\"mutation_rate\":" << config->mutation_rate
+                      << "}"
+                      << std::endl;
             // End
         }
 
