@@ -356,31 +356,25 @@ int align_to_graph(Config *config) {
     auto graph = load_critical_dbg(config->infbase);
     graph->print(std::cout);
 
-    // DEBUG
-    std::vector<std::string> spellings;
-    std::vector<std::vector<uint64_t>> paths;
-    std::ofstream out("/Users/alex/metagraph/metagraph/experiments/sketching/data/generated.fa");
-    int num_paths = 5000;
-    int max_path_size = graph->get_k() + 10;
-    generate_sequences(*graph, max_path_size, num_paths, config->mutation_rate, {'A', 'T', 'G', 'C'}, spellings, paths);
-    for(int i = 0; i < num_paths; ++i) {
-//        std::cout << spellings[i] << std::endl;
-//        for(auto x : paths[i]) {
-//            std::cout << x << " ";
-//        }
-//        std::cout << std::endl;
-        out << ">Q" << i << std::endl;
-        out << spellings[i] << std::endl;
-    }
-    out.close();
-    config->fnames = {"/Users/alex/metagraph/metagraph/experiments/sketching/data/generated.fa"};
-    const auto &files = config->fnames;
-
-
-    // DEBUG END
-
     // initialize alphabet
     ts::init_alphabet("dna4");
+
+    std::vector<std::string> spellings;
+    std::vector<std::vector<uint64_t>> paths;
+    std::ofstream out(config->output_path);
+    if (config->experiment) {
+        int max_path_size = graph->get_k() + 10;
+        generate_sequences(*graph, max_path_size, config->num_query_seqs, config->mutation_rate, {'A', 'T', 'G', 'C'}, spellings,
+                           paths);
+
+        for (int i = 0; i < config->num_query_seqs; ++i) {
+            out << ">Q" << i << std::endl;
+            out << spellings[i] << std::endl;
+        }
+        out.close();
+
+    }
+    const auto &files = config->fnames;
 
     if (utils::ends_with(config->outfbase, ".gfa")) {
         gfa_map_files(config, files, *graph);
@@ -540,11 +534,10 @@ int align_to_graph(Config *config) {
         };
 
         thread_pool.join();
-        if (config->seeder == "sketch") {
+        if (config->experiment && config->seeder == "sketch") {
             // Compute recall
-            auto rnd = std::mt19937(config->seed);
             int recalled_paths = 0;
-            for (int i = 0; i < num_paths; ++i) {
+            for (int i = 0; i < config->num_query_seqs; ++i) {
                 // For each path
                 auto path = paths[i];
 
@@ -564,9 +557,9 @@ int align_to_graph(Config *config) {
             }
             // TODO: So ugly...
             std::cout << "{"
-                      << "\"recall\":" << (float) recalled_paths / num_paths
+                      << "\"recall\":" << (float) recalled_paths / config->num_query_seqs
                       << ","
-                      << "\"avg_time\":" << alignment_time / num_paths
+                      << "\"avg_time\":" << alignment_time / config->num_query_seqs
                       << ","
                       << "\"mutation_rate\":" << config->mutation_rate
                       << "}"

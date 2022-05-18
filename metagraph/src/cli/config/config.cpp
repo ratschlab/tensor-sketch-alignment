@@ -322,6 +322,17 @@ Config::Config(int argc, char *argv[]) {
         } else if (!strcmp(argv[i], "--state")) {
             state = string_to_state(get_value(i++));
             // sketches
+        } else if (!strcmp(argv[i], "--num-query-seqs")) {
+            num_query_seqs = std::stoi(get_value(i++));
+        } else if (!strcmp(argv[i], "--output-path")) {
+            output_path = get_value(i++);
+        } else if (!strcmp(argv[i], "--experiment")) {
+            experiment = true;
+            fprintf(stderr, "\nWARNING: In experiment mode, will generate sequences instead of read from file\n");
+            fprintf(stderr, "\nWARNING: Number of query sequences: %d\n", num_query_seqs);
+            fprintf(stderr, "\nWARNING: Mutation rate: %d\n", mutation_rate);
+            fprintf(stderr, "\nWARNING: Saving sequences to: %s\n\n", output_path.c_str());
+            fnames.push_back(output_path);
         } else if (!strcmp(argv[i], "--mutation-rate")) {
             mutation_rate = std::stoi(get_value(i++));
         } else if (!strcmp(argv[i], "--subsampled_sketch_dim")) {
@@ -418,6 +429,10 @@ Config::Config(int argc, char *argv[]) {
             print_usage(argv[0], identity);
             exit(-1);
         } else {
+            if (experiment) {
+                fprintf(stderr, "\nERROR: Cannot use input file with --experiment\n\n");
+                exit(-1);
+            }
             fnames.push_back(argv[i]);
         }
     }
