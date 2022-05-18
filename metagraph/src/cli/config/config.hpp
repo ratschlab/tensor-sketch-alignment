@@ -35,6 +35,8 @@ class Config {
     uint32_t n_times_subsample = 5;
     uint32_t mutation_rate = 0;
     uint32_t num_query_seqs = 100;
+    uint32_t min_path_size = 5;
+    uint32_t max_path_size = 10;
 
     bool print_graph = false;
     bool print_graph_internal_repr = false;

@@ -306,6 +306,7 @@ string mutate(string s, int mutation_rate, std::vector<char> alphabet) {
 }
 
 void generate_sequences(const DeBruijnGraph &graph,
+                        size_t min_path_size,
                         size_t max_path_size,
                         size_t num_paths,
                         int mutation_rate,
@@ -319,23 +320,32 @@ void generate_sequences(const DeBruijnGraph &graph,
     for(int n_path = 0; n_path < num_paths; ++n_path) {
         uint64_t root_node = dis(gen);
         std::string root_node_seq = graph.get_node_sequence(root_node);
-
         std::vector <uint64_t> nodes;
         std::string spelling;
+        bool hit_dummy = false;
+
+        // If root node contains a $, then just keep looking
+        while(root_node_seq.find("$") != string::npos) {
+            root_node = dis(gen);
+            root_node_seq = graph.get_node_sequence(root_node);
+        }
 
         nodes.push_back(root_node);
         spelling = root_node_seq;
-        while(spelling.size() < max_path_size && graph.outdegree(nodes.back()) > 0) {
+        while(nodes.size() < max_path_size && !hit_dummy && graph.outdegree(nodes.back()) > 0) {
             graph.call_outgoing_kmers(
                     nodes.back(),
                     [&](uint64_t target, char c) {
-                        nodes.push_back(target);
-                        spelling += c;
+                        if(c == '$') {
+                            hit_dummy = true;
+                        } else {
+                            nodes.push_back(target);
+                            spelling += c;
+                        }
                     });
         }
 
-        // TODO: Make this less ugly
-        if (spelling.find("$") != string::npos || spelling.size() != max_path_size) {
+        if (nodes.size() < min_path_size || nodes.size() > max_path_size) {
             n_path--;
             continue;
         }
@@ -348,8 +358,6 @@ void generate_sequences(const DeBruijnGraph &graph,
 
 int align_to_graph(Config *config) {
     assert(config);
-
-
     assert(config->infbase.size());
 
     // initialize graph
@@ -363,8 +371,19 @@ int align_to_graph(Config *config) {
     std::vector<std::vector<uint64_t>> paths;
     std::ofstream out(config->output_path);
     if (config->experiment) {
-        int max_path_size = graph->get_k() + 10;
-        generate_sequences(*graph, max_path_size, config->num_query_seqs, config->mutation_rate, {'A', 'T', 'G', 'C'}, spellings,
+        if(config->min_path_size > graph->max_index()) {
+            logger->error("min_path_size = {} is larger than graph->max_index() = {}",
+                          config->min_path_size,
+                          graph->max_index());
+            exit(1);
+        }
+        generate_sequences(*graph,
+                           config->min_path_size,
+                           config->max_path_size,
+                           config->num_query_seqs,
+                           config->mutation_rate,
+                           {'A', 'T', 'G', 'C'},
+                           spellings,
                            paths);
 
         for (int i = 0; i < config->num_query_seqs; ++i) {
@@ -372,7 +391,6 @@ int align_to_graph(Config *config) {
             out << spellings[i] << std::endl;
         }
         out.close();
-
     }
     const auto &files = config->fnames;
 
@@ -541,17 +559,34 @@ int align_to_graph(Config *config) {
                 // For each path
                 auto path = paths[i];
 
-                auto seeds_per_query = graph->seeds_per_query[2 * i]; // TODO: Do I need the RC too?
-                bool recalled = false;
+                auto forward_seeds_per_query = graph->seeds_per_query[2 * i];
+                auto rc_seeds_per_query = graph->seeds_per_query[2 * i + 1];
+                int recalled = 0;
+
+                // Check forward
                 for(int kmer_ = 0; kmer_ < path.size(); ++kmer_) {
-                    auto seeds_per_kmer = seeds_per_query[kmer_];
+                    auto seeds_per_kmer = forward_seeds_per_query[kmer_];
 
                     if(std::count(seeds_per_kmer.begin(), seeds_per_kmer.end(), path[kmer_])) {
-                        recalled_paths++;
-                        recalled = true;
+                        recalled++;
                         break;
                     }
                 }
+
+                // If I didn't recall forwards, then check the RC
+                if (recalled == 0) {
+                    for (int kmer_ = 0; kmer_ < path.size(); ++kmer_) {
+                        auto seeds_per_kmer = rc_seeds_per_query[kmer_];
+
+                        if (std::count(seeds_per_kmer.begin(), seeds_per_kmer.end(), path[kmer_])) {
+                            recalled++;
+                            break;
+                        }
+                    }
+                }
+
+                recalled_paths += recalled % 2; // Add 1 if we recalled either
+
                 if(!recalled)
                     std::cout << "Did not recall seq: " << i << std::endl;
             }
