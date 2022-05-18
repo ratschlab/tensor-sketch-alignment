@@ -312,7 +312,7 @@ void generate_sequences(const DeBruijnGraph &graph,
                         std::vector<char> alphabet,
                         std::vector<std::string>& spellings,
                         std::vector<std::vector<uint64_t>>& paths) {
-    std::mt19937 gen(0);
+    std::mt19937 gen(1);
     std::uniform_int_distribution<uint64_t> dis(1, graph.num_nodes());
 
 
@@ -360,14 +360,15 @@ int align_to_graph(Config *config) {
     std::vector<std::string> spellings;
     std::vector<std::vector<uint64_t>> paths;
     std::ofstream out("/Users/alex/metagraph/metagraph/experiments/sketching/data/generated.fa");
-    int num_paths = 10;
-    generate_sequences(*graph, 6, num_paths, config->mutation_rate, {'A', 'T', 'G', 'C'}, spellings, paths);
+    int num_paths = 5000;
+    int max_path_size = graph->get_k() + 10;
+    generate_sequences(*graph, max_path_size, num_paths, config->mutation_rate, {'A', 'T', 'G', 'C'}, spellings, paths);
     for(int i = 0; i < num_paths; ++i) {
-        std::cout << spellings[i] << std::endl;
-        for(auto x : paths[i]) {
-            std::cout << x << " ";
-        }
-        std::cout << std::endl;
+//        std::cout << spellings[i] << std::endl;
+//        for(auto x : paths[i]) {
+//            std::cout << x << " ";
+//        }
+//        std::cout << std::endl;
         out << ">Q" << i << std::endl;
         out << spellings[i] << std::endl;
     }
@@ -546,60 +547,20 @@ int align_to_graph(Config *config) {
             for (int i = 0; i < num_paths; ++i) {
                 // For each path
                 auto path = paths[i];
-                auto spelling = spellings[i];
 
-                // Sketch it again (this is so bad)
-                size_t k = graph->get_k() - 1;
-                ts::TensorSlide <uint8_t> tensor = ts::TensorSlide<uint8_t>(config->kmer_word_size,
-                                                                            config->sketch_dim,
-                                                                            config->subsequence_len,
-                                                                            k,
-                                                                            config->stride,
-                                                                            config->seed);
-                std::vector <uint8_t> query_to_int;
-                query_to_int.clear();
-                for (unsigned char c: spelling) {
-                    query_to_int.push_back(ts::char2int(c));
-                }
+                auto seeds_per_query = graph->seeds_per_query[2 * i]; // TODO: Do I need the RC too?
+                bool recalled = false;
+                for(int kmer_ = 0; kmer_ < path.size(); ++kmer_) {
+                    auto seeds_per_kmer = seeds_per_query[kmer_];
 
-                std::vector <std::vector<double>> sketches = tensor.compute(query_to_int);
-                int num_sketches = sketches.size();
-                bool found = false;
-
-                for (int i = 0; i < num_sketches && !found; ++i) {
-                    for (int n_repeat = 0; n_repeat < config->n_times_subsample && !found; n_repeat++) {
-                        uint64_t discretized_sketch = 0;
-                        std::vector<double> sketch = sketches[i];
-                        // Subsample sketch
-                        std::vector<double> subsampled_sketch;
-                        std::sample(sketch.begin(),
-                                    sketch.end(),
-                                    std::back_inserter(subsampled_sketch),
-                                    config->subsampled_sketch_dim,
-                                    rnd);
-
-                        for (int j = 0; j < subsampled_sketch.size(); ++j) {
-                            double bit = subsampled_sketch[subsampled_sketch.size() - 1 - j];
-                            if (std::abs(bit) < 1e-15)
-                                bit = +0.0f;
-                            discretized_sketch += std::signbit(bit) * pow(2, j);
-                        }
-
-                        // Check if hit in any of the n_times_subsample dicts
-                        for (int n_r = 0; n_r < config->n_times_subsample && !found; ++n_r) {
-                            if (graph->sketch_maps[n_r].count(discretized_sketch)) {
-                                // Got a hit in the graph, check if it s a good node
-                                auto matched_nodes = graph->sketch_maps[n_r].at(discretized_sketch);
-                                if (std::count(matched_nodes.begin(), matched_nodes.end(), path[i])) {
-                                    // we recalled
-                                    recalled_paths++;
-                                    found = true;
-                                    break;
-                                }
-                            }
-                        }
+                    if(std::count(seeds_per_kmer.begin(), seeds_per_kmer.end(), path[kmer_])) {
+                        recalled_paths++;
+                        recalled = true;
+                        break;
                     }
                 }
+                if(!recalled)
+                    std::cout << "Did not recall seq: " << i << std::endl;
             }
             // TODO: So ugly...
             std::cout << "{"

@@ -102,6 +102,7 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
     std::vector<std::vector<double>> sketches = tensor.compute(query_to_int);
     int num_sketches = sketches.size();
     // Repeat multiple times
+    std::vector<std::vector<node_index>> seeds_per_kmer;
     for (int i = 0; i < num_sketches; ++i, --end_clipping) {
         assert(i + k <= query_.size());
         std::unordered_set<node_index> matches;
@@ -134,10 +135,14 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                 }
             }
         }
+
+        //seeds_per_query[i][1..n] = vector of matched nodes for every 1..n kmer of query i
+        seeds_per_kmer.push_back(std::vector<node_index>(matches.begin(), matches.end()));
         seeds.emplace_back(query_.substr(i, k),
                            std::vector<node_index>(matches.begin(), matches.end()),
                            orientation_, 0, i, end_clipping);
     }
+    graph_.seeds_per_query.push_back(seeds_per_kmer);
     return seeds;
 }
 
