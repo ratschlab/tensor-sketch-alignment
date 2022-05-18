@@ -289,18 +289,110 @@ std::string format_alignment(const std::string &header,
 using kmer_type = uint64_t;
 using seq_type = uint8_t;
 
+string mutate(string s, int mutation_rate, std::vector<char> alphabet) {
+    std::string mutated_string = s;
+    for(int i = 0; i < s.size(); ++i) {
+        if (rand() % 100 < mutation_rate) {
+            // mutate
+            char new_c = alphabet[rand() % alphabet.size()];
+            while(new_c == s[i]) {
+                new_c = alphabet[rand() % alphabet.size()];
+            }
+
+            mutated_string[i] = new_c;
+        }
+    }
+    return mutated_string;
+}
+
+void generate_sequences(const DeBruijnGraph &graph,
+                        size_t min_path_size,
+                        size_t max_path_size,
+                        size_t num_paths,
+                        int mutation_rate,
+                        std::vector<char> alphabet,
+                        std::vector<std::string>& spellings,
+                        std::vector<std::vector<uint64_t>>& paths) {
+    std::mt19937 gen(1);
+    std::uniform_int_distribution<uint64_t> dis(1, graph.num_nodes());
+
+
+    for(int n_path = 0; n_path < num_paths; ++n_path) {
+        uint64_t root_node = dis(gen);
+        std::string root_node_seq = graph.get_node_sequence(root_node);
+        std::vector <uint64_t> nodes;
+        std::string spelling;
+        bool hit_dummy = false;
+
+        // If root node contains a $, then just keep looking
+        while(root_node_seq.find("$") != string::npos) {
+            root_node = dis(gen);
+            root_node_seq = graph.get_node_sequence(root_node);
+        }
+
+        nodes.push_back(root_node);
+        spelling = root_node_seq;
+        while(nodes.size() < max_path_size && !hit_dummy && graph.outdegree(nodes.back()) > 0) {
+            graph.call_outgoing_kmers(
+                    nodes.back(),
+                    [&](uint64_t target, char c) {
+                        if(c == '$') {
+                            hit_dummy = true;
+                        } else {
+                            nodes.push_back(target);
+                            spelling += c;
+                        }
+                    });
+        }
+
+        if (nodes.size() < min_path_size || nodes.size() > max_path_size) {
+            n_path--;
+            continue;
+        }
+
+        spellings.push_back(mutate(spelling, mutation_rate, alphabet));
+        paths.push_back(nodes);
+    }
+}
+
+
 int align_to_graph(Config *config) {
     assert(config);
-
-    const auto &files = config->fnames;
-
     assert(config->infbase.size());
 
     // initialize graph
     auto graph = load_critical_dbg(config->infbase);
     graph->print(std::cout);
+
     // initialize alphabet
     ts::init_alphabet("dna4");
+
+    std::vector<std::string> spellings;
+    std::vector<std::vector<uint64_t>> paths;
+    std::ofstream out(config->output_path);
+    if (config->experiment) {
+        if(config->min_path_size > graph->max_index()) {
+            logger->error("min_path_size = {} is larger than graph->max_index() = {}",
+                          config->min_path_size,
+                          graph->max_index());
+            exit(1);
+        }
+        generate_sequences(*graph,
+                           config->min_path_size,
+                           config->max_path_size,
+                           config->num_query_seqs,
+                           config->mutation_rate,
+                           {'A', 'T', 'G', 'C'},
+                           spellings,
+                           paths);
+
+        for (int i = 0; i < config->num_query_seqs; ++i) {
+            out << ">Q" << i << std::endl;
+            out << spellings[i] << std::endl;
+        }
+        out.close();
+    }
+    const auto &files = config->fnames;
 
     if (utils::ends_with(config->outfbase, ".gfa")) {
         gfa_map_files(config, files, *graph);
@@ -326,6 +418,7 @@ int align_to_graph(Config *config) {
     }
 
     Timer timer;
+    float alignment_time;
     ThreadPool thread_pool(get_num_threads());
     std::mutex print_mutex;
 
@@ -446,6 +539,7 @@ int align_to_graph(Config *config) {
                                             aligner_config.n_times_subsample);
                     aligner = std::make_unique<DBGAligner<SuffixSeeder<SketchSeeder>, DefaultColumnExtender, LocalAlignmentLess>>(*aln_graph, aligner_config);
                 }
+                Timer start_alignment;
                 aligner->align_batch(batch,
                     [&](const std::string &header, AlignmentResults&& paths) {
                         const auto &res = format_alignment(header, paths, *graph, *config);
@@ -453,10 +547,60 @@ int align_to_graph(Config *config) {
                         *out << res;
                     }
                 );
+                alignment_time = start_alignment.elapsed();
             });
         };
 
         thread_pool.join();
+        if (config->experiment && config->seeder == "sketch") {
+            // Compute recall
+            int recalled_paths = 0;
+            for (int i = 0; i < config->num_query_seqs; ++i) {
+                // For each path
+                auto path = paths[i];
+
+                auto forward_seeds_per_query = graph->seeds_per_query[2 * i];
+                auto rc_seeds_per_query = graph->seeds_per_query[2 * i + 1];
+                int recalled = 0;
+
+                // Check forward
+                for(int kmer_ = 0; kmer_ < path.size(); ++kmer_) {
+                    auto seeds_per_kmer = forward_seeds_per_query[kmer_];
+
+                    if(std::count(seeds_per_kmer.begin(), seeds_per_kmer.end(), path[kmer_])) {
+                        recalled++;
+                        break;
+                    }
+                }
+
+                // If I didn't recall forwards, then check the RC
+                if (recalled == 0) {
+                    for (int kmer_ = 0; kmer_ < path.size(); ++kmer_) {
+                        auto seeds_per_kmer = rc_seeds_per_query[kmer_];
+
+                        if (std::count(seeds_per_kmer.begin(), seeds_per_kmer.end(), path[kmer_])) {
+                            recalled++;
+                            break;
+                        }
+                    }
+                }
+
+                recalled_paths += recalled % 2; // Add 1 if we recalled either
+
+                if(!recalled)
+                    std::cout << "Did not recall seq: " << i << std::endl;
+            }
+            // TODO: So ugly...
+            std::cout << "{"
+                      << "\"recall\":" << (float) recalled_paths / config->num_query_seqs
+                      << ","
+                      << "\"avg_time\":" << alignment_time / config->num_query_seqs
+                      << ","
+                      << "\"mutation_rate\":" << config->mutation_rate
+                      << "}"
+                      << std::endl;
+            // End
+        }
 
         logger->trace("File {} processed in {} sec, "
                       "num batches: {}, batch size: {} KB, "

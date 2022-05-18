@@ -188,7 +188,6 @@ auto DBGAligner<Seeder, Extender, AlignmentCompare>
     assert(seq_batch.size() == wrapped_seqs.size());
     BatchSeeders result;
     result.reserve(seq_batch.size());
-
     ProgressBar progress_bar(seq_batch.size(), "Seeding sequences",
                              std::cerr, !common::get_verbose());
     for (size_t i = 0; i < seq_batch.size(); ++i, ++progress_bar) {
@@ -228,7 +227,6 @@ auto DBGAligner<Seeder, Extender, AlignmentCompare>
 #endif
         result.emplace_back(std::move(seeder), std::move(seeder_rc));
     }
-
     return result;
 }
 

@@ -86,10 +86,8 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                                                                k,
                                                                config_.stride,
                                                                config_.seed);
+    auto rnd = std::mt19937(config_.seed);
 
-//
-//    if (num_matching_ < config_.min_exact_match * query_.size())
-//        return {};
     size_t end_clipping = query_.size() - k;
 
     // Convert query string to integer alphabet
@@ -104,6 +102,7 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
     std::vector<std::vector<double>> sketches = tensor.compute(query_to_int);
     int num_sketches = sketches.size();
     // Repeat multiple times
+    std::vector<std::vector<node_index>> seeds_per_kmer;
     for (int i = 0; i < num_sketches; ++i, --end_clipping) {
         assert(i + k <= query_.size());
         std::unordered_set<node_index> matches;
@@ -118,7 +117,7 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                         sketch.end(),
                         std::back_inserter(subsampled_sketch),
                         config_.subsampled_sketch_dim,
-                        std::mt19937{std::random_device{}()});
+                        rnd);
 
             for (int j = 0; j < subsampled_sketch.size(); ++j) {
                 double bit = subsampled_sketch[subsampled_sketch.size() - 1 - j];
@@ -136,10 +135,14 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                 }
             }
         }
+
+        //seeds_per_query[i][1..n] = vector of matched nodes for every 1..n kmer of query i
+        seeds_per_kmer.push_back(std::vector<node_index>(matches.begin(), matches.end()));
         seeds.emplace_back(query_.substr(i, k),
                            std::vector<node_index>(matches.begin(), matches.end()),
                            orientation_, 0, i, end_clipping);
     }
+    graph_.seeds_per_query.push_back(seeds_per_kmer);
     return seeds;
 }
 

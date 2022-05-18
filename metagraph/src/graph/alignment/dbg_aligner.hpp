@@ -62,7 +62,9 @@ class DBGAligner : public IDBGAligner {
     const DeBruijnGraph& get_graph() const override { return graph_; }
     const DBGAlignerConfig& get_config() const override { return config_; }
 
-  protected:
+
+
+protected:
     typedef typename Seeder::node_index node_index;
     typedef Alignment::score_t score_t;
 
@@ -70,7 +72,6 @@ class DBGAligner : public IDBGAligner {
     DBGAlignerConfig config_;
 
     typedef std::vector<std::pair<std::shared_ptr<ISeeder>, std::shared_ptr<ISeeder>>> BatchSeeders;
-
     BatchSeeders
     virtual build_seeders(const std::vector<Query> &seq_batch,
                           const std::vector<AlignmentResults> &wrapped_seqs) const;
