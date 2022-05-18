@@ -467,7 +467,7 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
     ts::TensorSlide<uint8_t> tensor = ts::TensorSlide<uint8_t>(kmer_word_size,
                                                                embed_dim,
                                                                tuple_length,
-                                                               get_k() - 1,
+                                                               get_k(),
                                                                stride,
                                                                seed);
     sketch_maps = std::vector<std::unordered_map<uint64_t, std::vector<node_index>>>(n_times_subsample);
