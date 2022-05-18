@@ -3,7 +3,7 @@ import json
 import plotly.graph_objects as go
 import time
 import os
-from time import gmtime, strftime
+from time import localtime, strftime
 
 DATASET_DIR = './data'
 METAGRAPH_PATH = "/Users/alex/metagraph/metagraph/build/metagraph"
@@ -62,7 +62,7 @@ if __name__ == '__main__':
     )
     fig.show()
 
-    experiment_dir = os.path.join("runs", strftime("%Y-%m-%dT%H:%M:%S", gmtime()))
+    experiment_dir = os.path.join("runs", strftime("%Y-%m-%dT%H:%M:%S", localtime()))
     os.mkdir(experiment_dir)
 
     fig.write_image(os.path.join(experiment_dir, 'fig.png'), scale=1, width=1920, height=1080)
