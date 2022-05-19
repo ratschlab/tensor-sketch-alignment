@@ -125,7 +125,7 @@ class MEMSeeder : public ExactSeeder {
     virtual const bitmap& get_mem_terminator() const = 0;
 };
 
-class SketchSeeder : public ExactSeeder {
+class SketchSeeder : public ISeeder {
     public:
         typedef DeBruijnGraph::node_index node_index;
 
@@ -140,9 +140,15 @@ class SketchSeeder : public ExactSeeder {
         const DBGAlignerConfig& get_config() const override { return config_; }
         std::vector<Seed> get_seeds() const override;
         std::vector<Alignment> get_alignments() const override;
+        size_t get_num_matches() const override final { return 0; } // TODO: Implement this
 
     protected:
         std::unordered_map<int, std::string> sketches;
+        const DeBruijnGraph &graph_;
+        std::string_view query_;
+        bool orientation_;
+        std::vector<node_index> query_nodes_;
+        const DBGAlignerConfig &config_;
 };
 
 class UniMEMSeeder : public MEMSeeder {

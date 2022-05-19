@@ -359,7 +359,6 @@ void generate_sequences(const DeBruijnGraph &graph,
 int align_to_graph(Config *config) {
     assert(config);
     assert(config->infbase.size());
-
     // initialize graph
     auto graph = load_critical_dbg(config->infbase);
     graph->print(std::cout);
@@ -389,21 +388,13 @@ int align_to_graph(Config *config) {
                            paths);
 
         for (int i = 0; i < config->num_query_seqs; ++i) {
-            out << ">Q" << i << std::endl;
+            std::string header = ">Q" + std::to_string(i);
+            out << header << std::endl;
             out << spellings[i] << std::endl;
         }
         out.close();
     }
-//
-//    // DEBUG
-//    for (int i = 0; i < config->num_query_seqs; ++i) {
-//        std::cout << spellings[i] << std::endl;
-//        for(auto x : paths[i]) {
-//            std::cout << x << " ";
-//        }
-//        std::cout << std::endl;
-//    }
-//    // END DEBUG
+
 
     const auto &files = config->fnames;
 
@@ -505,6 +496,9 @@ int align_to_graph(Config *config) {
 
         size_t num_batches = 0;
 
+        std::unordered_map<std::string, std::vector<Seed>> forward_query_seeds;
+        std::unordered_map<std::string, std::vector<Seed>> rc_query_seeds;
+
         while (it != end) {
             uint64_t num_bytes_read = 0;
 
@@ -554,9 +548,8 @@ int align_to_graph(Config *config) {
                     logger->trace("Sketch size (config): {}", config->sketch_dim);
                     logger->trace("Subsampling sketch size: {}", config->subsampled_sketch_dim);
                     logger->trace("Times to subsample: {}", config->n_times_subsample);
-                    aligner = std::make_unique<DBGAligner<SuffixSeeder<SketchSeeder>, DefaultColumnExtender, LocalAlignmentLess>>(*aln_graph, aligner_config);
+                    aligner = std::make_unique<DBGAligner<SketchSeeder, DefaultColumnExtender, LocalAlignmentLess>>(*aln_graph, aligner_config);
                 }
-                Timer start_alignment;
                 aligner->align_batch(batch,
                     [&](const std::string &header, AlignmentResults&& paths) {
                         const auto &res = format_alignment(header, paths, *graph, *config);
@@ -564,60 +557,38 @@ int align_to_graph(Config *config) {
                         *out << res;
                     }
                 );
-                alignment_time = start_alignment.elapsed();
+
+                // Merge into the big map
+                forward_query_seeds.merge(aligner->forward_query_seeds);
+                rc_query_seeds.merge(aligner->rc_query_seeds);
             });
         };
 
         thread_pool.join();
+
+        // Compute the recall now
+        int recalled_paths = 0;
+//        for(int i = 0; i < config->num_query_seqs; ++i) {
+//            std::string header = "Q" + std::to_string(i);
 //
-//        if (config->experiment && config->seeder == "sketch") {
-//            // Compute recall
-//            int recalled_paths = 0;
-//            for (int i = 0; i < config->num_query_seqs; ++i) {
-//                // For each path
-//                auto path = paths[i];
+//            // Get query sequence and path
+//            std::string query_seq = spellings[i];
+//            std::vector<uint64_t> path = paths[i];
 //
-//                auto forward_seeds_per_query = graph->seeds_per_query[2 * i];
-//                auto rc_seeds_per_query = graph->seeds_per_query[2 * i + 1];
-//                int recalled = 0;
+//            // Get matched seeds (fwd and bwd)
+//            auto fwd_seeds = forward_query_seeds[header];
+//            auto rc_seeds = rc_query_seeds[header];
 //
-//                // Check forward
-//                for(int kmer_ = 0; kmer_ < path.size(); ++kmer_) {
-//                    auto seeds_per_kmer = forward_seeds_per_query[kmer_];
+//            int recalled = 0;
 //
-//                    if(std::count(seeds_per_kmer.begin(), seeds_per_kmer.end(), path[kmer_])) {
-//                        recalled++;
-//                        break;
-//                    }
+//            // Check if the forward sequence recalled
+//            for(auto seed : fwd_seeds) {
+//                auto seed_nodes = seed.get_nodes();
+//
+//                for(int start = seed.get_clipping(); start + graph->get_k() < seed.get_end_clipping(); ++start) {
+//
 //                }
-//
-//                // If I didn't recall forwards, then check the RC
-//                if (recalled == 0) {
-//                    for (int kmer_ = 0; kmer_ < path.size(); ++kmer_) {
-//                        auto seeds_per_kmer = rc_seeds_per_query[kmer_];
-//
-//                        if (std::count(seeds_per_kmer.begin(), seeds_per_kmer.end(), path[kmer_])) {
-//                            recalled++;
-//                            break;
-//                        }
-//                    }
-//                }
-//
-//                recalled_paths += recalled % 2; // Add 1 if we recalled either
-//
-//                if(!recalled)
-//                    std::cout << "Did not recall seq: " << i << std::endl;
 //            }
-//            // TODO: So ugly...
-//            std::cout << "{"
-//                      << "\"recall\":" << (float) recalled_paths / config->num_query_seqs
-//                      << ","
-//                      << "\"avg_time\":" << alignment_time / config->num_query_seqs
-//                      << ","
-//                      << "\"mutation_rate\":" << config->mutation_rate
-//                      << "}"
-//                      << std::endl;
-//            // End
 //        }
 
         logger->trace("File {} processed in {} sec, "

@@ -477,138 +477,138 @@ add_custom_target(link_target ALL
 )
 
 add_dependencies(metagraph link_target)
-#
-#
-##-------------------
-## Experiments
-##-------------------
-#file(GLOB experiment_files
-#  "experiments/*.cpp"
-#)
-#list(FILTER experiment_files EXCLUDE REGEX ".*\\._.*")
-#
-#include_directories(
-#  experiments
-#  external-libraries/tclap/include
-#)
-#
-#link_directories(
-#  external-libraries/sdsl-lite/lib
-#)
-#add_executable(run_experiments ${experiment_files})
-#
-#target_link_libraries(run_experiments metagraph-core metagraph-cli)
-#
-##-------------------
-## install library
-##-------------------
-#
-#file(GLOB header_files
-#  "src/*.hpp"
-#  "src/*/*.hpp"
-#  "src/*/*/*.hpp"
-#)
-#
-#install(TARGETS metagraph-core DESTINATION lib)
-#install(FILES ${header_files} DESTINATION include/metagraph)
-#install(TARGETS metagraph DESTINATION bin)
-#
-##-------------------
-## Unit Tests
-##-------------------
-## There is an old gtest library shipped with sdsl.
-## Remove it as we are going to use a more recent one.
-#execute_process(COMMAND rm -rf ${PROJECT_SOURCE_DIR}/external-libraries/sdsl-lite/include/gtest)
-#
-#add_subdirectory(${PROJECT_SOURCE_DIR}/external-libraries/googletest EXCLUDE_FROM_ALL)
-#target_compile_options(gtest_main PRIVATE -w)
-#target_compile_options(gtest PRIVATE -w)
-#
-#set(DEATH_TEST_FLAG "")
-#if(NO_DEATH_TESTS)
-#  message(STATUS "Disabling death tests in gtest")
-#  set(DEATH_TEST_FLAG -D_NO_DEATH_TEST)
-#endif()
-#
-#file(GLOB unit_tests_files
-#  "tests/*.cpp"
-#  "tests/*/*.cpp"
-#  "tests/*/*/*.cpp"
-#  "tests/*/*/*/*.cpp"
-#)
-#list(FILTER unit_tests_files EXCLUDE REGEX ".*\\._.*")
-#
-#link_directories(
-#  ${CMAKE_BINARY_DIR}
-#)
-#
-#add_executable(unit_tests ${unit_tests_files})
-#target_include_directories(unit_tests PRIVATE "${PROJECT_SOURCE_DIR}")
-#target_compile_definitions(unit_tests PRIVATE TEST_DATA_DIR="${PROJECT_SOURCE_DIR}/tests/data")
-#target_link_libraries(unit_tests gtest_main gtest gmock metagraph-core metagraph-cli)
-#
-#target_compile_options(unit_tests PRIVATE -Wno-undefined-var-template ${DEATH_TEST_FLAG})
-#
-##-------------------
-## Benchmarks
-##-------------------
-#add_subdirectory(${PROJECT_SOURCE_DIR}/external-libraries/benchmark EXCLUDE_FROM_ALL)
-#
-#file(GLOB benchmark_files
-#  "benchmarks/*.cpp"
-#  "benchmarks/*/*.cpp"
-#)
-#list(FILTER benchmark_files EXCLUDE REGEX ".*\\._.*")
-#
-#add_executable(benchmarks ${benchmark_files})
-#target_compile_definitions(benchmarks PRIVATE TEST_DATA_DIR="${PROJECT_SOURCE_DIR}/tests/data")
-#target_link_libraries(benchmarks benchmark_main benchmark metagraph-core metagraph-cli -lsdsl)
-#
-#target_compile_options(benchmarks PRIVATE -Wno-undefined-var-template)
-#
-##-------------------
-## Tests
-##-------------------
-#find_package(Python3 3.4 REQUIRED COMPONENTS Interpreter)
-#
-#add_custom_command(OUTPUT ${PROJECT_BINARY_DIR}/test_venv/DONE
-#  COMMAND ${PROJECT_SOURCE_DIR}/integration_tests/install_test_environment.sh ${PROJECT_SOURCE_DIR}/api/python ${PROJECT_BINARY_DIR}/test_venv
-#)
-#execute_process(COMMAND ${PROJECT_SOURCE_DIR}/integration_tests/install_test_environment.sh ${PROJECT_SOURCE_DIR}/api/python ${PROJECT_BINARY_DIR}/test_venv)
-#
-## creating a make target, s.t. the environment can be set up explicitly
-#add_custom_target(install_test_environment
-#  DEPENDS ${PROJECT_BINARY_DIR}/test_venv/DONE
-#)
-#
-## --- integration tests ---
-#add_custom_target(check
-#  COMMAND ${PROJECT_BINARY_DIR}/test_venv/bin/python ${PROJECT_SOURCE_DIR}/integration_tests/main.py
-#  DEPENDS metagraph
-#  DEPENDS install_test_environment
-#)
-## --- integration tests + unit tests ---
-#add_custom_target(check_all
-#  COMMAND make check
-#  COMMAND unit_tests
-#  DEPENDS check unit_tests
-#)
-#add_test(NAME integration_tests COMMAND make check)
-#add_test(NAME unit_tests COMMAND unit_tests)
-#
-## --- integration tests runner ---
-#get_target_property(PythonPath Python3::Interpreter IMPORTED_LOCATION)
-#file(WRITE "${PROJECT_BINARY_DIR}/CMakeFiles/integration_tests" "#!/bin/bash\n")
-#file(APPEND "${PROJECT_BINARY_DIR}/CMakeFiles/integration_tests"
-#  "\n${PROJECT_BINARY_DIR}/test_venv/bin/python ${PROJECT_SOURCE_DIR}/integration_tests/main.py \"$@\""
-#)
-#file(INSTALL "${PROJECT_BINARY_DIR}/CMakeFiles/integration_tests"
-#  DESTINATION "${PROJECT_BINARY_DIR}"
-#  FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
-#                   GROUP_READ GROUP_EXECUTE
-#                   WORLD_READ WORLD_EXECUTE
-#)
-#
+
+
+#-------------------
+# Experiments
+#-------------------
+file(GLOB experiment_files
+  "experiments/*.cpp"
+)
+list(FILTER experiment_files EXCLUDE REGEX ".*\\._.*")
+
+include_directories(
+  experiments
+  external-libraries/tclap/include
+)
+
+link_directories(
+  external-libraries/sdsl-lite/lib
+)
+add_executable(run_experiments ${experiment_files})
+
+target_link_libraries(run_experiments metagraph-core metagraph-cli)
+
+#-------------------
+# install library
+#-------------------
+
+file(GLOB header_files
+  "src/*.hpp"
+  "src/*/*.hpp"
+  "src/*/*/*.hpp"
+)
+
+install(TARGETS metagraph-core DESTINATION lib)
+install(FILES ${header_files} DESTINATION include/metagraph)
+install(TARGETS metagraph DESTINATION bin)
+
+#-------------------
+# Unit Tests
+#-------------------
+# There is an old gtest library shipped with sdsl.
+# Remove it as we are going to use a more recent one.
+execute_process(COMMAND rm -rf ${PROJECT_SOURCE_DIR}/external-libraries/sdsl-lite/include/gtest)
+
+add_subdirectory(${PROJECT_SOURCE_DIR}/external-libraries/googletest EXCLUDE_FROM_ALL)
+target_compile_options(gtest_main PRIVATE -w)
+target_compile_options(gtest PRIVATE -w)
+
+set(DEATH_TEST_FLAG "")
+if(NO_DEATH_TESTS)
+  message(STATUS "Disabling death tests in gtest")
+  set(DEATH_TEST_FLAG -D_NO_DEATH_TEST)
+endif()
+
+file(GLOB unit_tests_files
+  "tests/*.cpp"
+  "tests/*/*.cpp"
+  "tests/*/*/*.cpp"
+  "tests/*/*/*/*.cpp"
+)
+list(FILTER unit_tests_files EXCLUDE REGEX ".*\\._.*")
+
+link_directories(
+  ${CMAKE_BINARY_DIR}
+)
+
+add_executable(unit_tests ${unit_tests_files})
+target_include_directories(unit_tests PRIVATE "${PROJECT_SOURCE_DIR}")
+target_compile_definitions(unit_tests PRIVATE TEST_DATA_DIR="${PROJECT_SOURCE_DIR}/tests/data")
+target_link_libraries(unit_tests gtest_main gtest gmock metagraph-core metagraph-cli)
+
+target_compile_options(unit_tests PRIVATE -Wno-undefined-var-template ${DEATH_TEST_FLAG})
+
+#-------------------
+# Benchmarks
+#-------------------
+add_subdirectory(${PROJECT_SOURCE_DIR}/external-libraries/benchmark EXCLUDE_FROM_ALL)
+
+file(GLOB benchmark_files
+  "benchmarks/*.cpp"
+  "benchmarks/*/*.cpp"
+)
+list(FILTER benchmark_files EXCLUDE REGEX ".*\\._.*")
+
+add_executable(benchmarks ${benchmark_files})
+target_compile_definitions(benchmarks PRIVATE TEST_DATA_DIR="${PROJECT_SOURCE_DIR}/tests/data")
+target_link_libraries(benchmarks benchmark_main benchmark metagraph-core metagraph-cli -lsdsl)
+
+target_compile_options(benchmarks PRIVATE -Wno-undefined-var-template)
+
+#-------------------
+# Tests
+#-------------------
+find_package(Python3 3.4 REQUIRED COMPONENTS Interpreter)
+
+add_custom_command(OUTPUT ${PROJECT_BINARY_DIR}/test_venv/DONE
+  COMMAND ${PROJECT_SOURCE_DIR}/integration_tests/install_test_environment.sh ${PROJECT_SOURCE_DIR}/api/python ${PROJECT_BINARY_DIR}/test_venv
+)
+execute_process(COMMAND ${PROJECT_SOURCE_DIR}/integration_tests/install_test_environment.sh ${PROJECT_SOURCE_DIR}/api/python ${PROJECT_BINARY_DIR}/test_venv)
+
+# creating a make target, s.t. the environment can be set up explicitly
+add_custom_target(install_test_environment
+  DEPENDS ${PROJECT_BINARY_DIR}/test_venv/DONE
+)
+
+# --- integration tests ---
+add_custom_target(check
+  COMMAND ${PROJECT_BINARY_DIR}/test_venv/bin/python ${PROJECT_SOURCE_DIR}/integration_tests/main.py
+  DEPENDS metagraph
+  DEPENDS install_test_environment
+)
+# --- integration tests + unit tests ---
+add_custom_target(check_all
+  COMMAND make check
+  COMMAND unit_tests
+  DEPENDS check unit_tests
+)
+add_test(NAME integration_tests COMMAND make check)
+add_test(NAME unit_tests COMMAND unit_tests)
+
+# --- integration tests runner ---
+get_target_property(PythonPath Python3::Interpreter IMPORTED_LOCATION)
+file(WRITE "${PROJECT_BINARY_DIR}/CMakeFiles/integration_tests" "#!/bin/bash\n")
+file(APPEND "${PROJECT_BINARY_DIR}/CMakeFiles/integration_tests"
+  "\n${PROJECT_BINARY_DIR}/test_venv/bin/python ${PROJECT_SOURCE_DIR}/integration_tests/main.py \"$@\""
+)
+file(INSTALL "${PROJECT_BINARY_DIR}/CMakeFiles/integration_tests"
+  DESTINATION "${PROJECT_BINARY_DIR}"
+  FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
+                   GROUP_READ GROUP_EXECUTE
+                   WORLD_READ WORLD_EXECUTE
+)
+
 ##-------------------
 ## Python interfaces
 ##-------------------

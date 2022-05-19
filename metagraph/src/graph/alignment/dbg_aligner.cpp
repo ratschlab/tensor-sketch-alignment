@@ -246,6 +246,11 @@ void DBGAligner<Seeder, Extender, AlignmentCompare>
     for (size_t i = 0; i < seq_batch.size(); ++i) {
         const auto &[header, query] = seq_batch[i];
         auto &[seeder, seeder_rc] = seeders[i];
+
+        // Saving stats for recall
+        forward_query_seeds.insert({header, (*seeder).get_seeds()});
+        rc_query_seeds.insert({header, (*seeder_rc).get_seeds()});
+
         AlignmentAggregator<AlignmentCompare> aggregator(config_);
 
         size_t num_seeds = 0;
@@ -706,7 +711,7 @@ DBGAligner<Seeder, Extender, AlignmentCompare>
 template class DBGAligner<>;
 template class DBGAligner<SuffixSeeder<ExactSeeder>, DefaultColumnExtender, LocalAlignmentLess>;
 template class DBGAligner<SuffixSeeder<UniMEMSeeder>, LabeledExtender>;
-template class DBGAligner<SuffixSeeder<SketchSeeder>, DefaultColumnExtender, LocalAlignmentLess>;
+template class DBGAligner<SketchSeeder, DefaultColumnExtender, LocalAlignmentLess>;
 
 } // namespace align
 } // namespace graph

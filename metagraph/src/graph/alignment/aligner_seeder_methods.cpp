@@ -30,8 +30,13 @@ SketchSeeder::SketchSeeder(const DeBruijnGraph &graph,
                          std::string_view query,
                          bool orientation,
                          std::vector<node_index>&& nodes,
-                         const DBGAlignerConfig &config) :
-        ExactSeeder(graph, query, orientation, std::move(nodes), config) {}
+                         const DBGAlignerConfig &config)
+     : graph_(graph),
+       query_(query),
+       orientation_(orientation),
+       query_nodes_(std::move(nodes)),
+       config_(config) {assert(config_.check_config_scores()); }
+
 
 size_t ExactSeeder::num_exact_matching() const {
     size_t num_matching = 0;
@@ -194,7 +199,6 @@ auto SketchSeeder::get_alignments() const -> std::vector<Alignment> {
         cigar.append(Cigar(cigar_str));
         cigar.append(Cigar::CLIPPED, seed.get_end_clipping());
 
-//        std::cout << node_sequence << " " << kmer_match << " " << cigar.to_string() << std::endl;
         // Get cigar score
         auto config = get_config();
         score_t cigar_score = config.score_cigar(node_sequence, kmer_match, cigar);
@@ -540,7 +544,6 @@ auto MEMSeeder::get_seeds() const -> std::vector<Seed> {
 
 template class SuffixSeeder<ExactSeeder>;
 template class SuffixSeeder<UniMEMSeeder>;
-template class SuffixSeeder<SketchSeeder>;
 
 } // namespace align
 } // namespace graph
