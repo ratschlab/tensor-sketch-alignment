@@ -139,6 +139,7 @@ class SketchSeeder : public ExactSeeder {
 
         const DBGAlignerConfig& get_config() const override { return config_; }
         std::vector<Seed> get_seeds() const override;
+        std::vector<Alignment> get_alignments() const override;
 
     protected:
         std::unordered_map<int, std::string> sketches;

@@ -144,6 +144,77 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
     return seeds;
 }
 
+auto SketchSeeder::get_alignments() const -> std::vector<Alignment> {
+    std::vector<Seed> seeds = get_seeds();
+    std::vector<Alignment> alignments;
+
+    for(Seed seed : seeds) {
+        // Query sequence match
+        std::string_view kmer_match = seed.get_query_view().substr(0, graph_.get_k());
+
+        // Matched nodes (will always be just 1)
+        std::vector<node_index> nodes = seed.get_nodes();
+        std::string node_sequence = graph_.get_node_sequence(nodes[0]);
+
+        std::string cigar_str;
+
+        // Compute character comparison and make cigar string
+        int k = graph_.get_k();
+        int curr_matches = 0;
+        int curr_mismatches = 0;
+        for(int i = 0; i < k; ++i) {
+            char kmer_match_char = kmer_match[i];
+            char node_char = node_sequence[i];
+
+            if(kmer_match_char == node_char) {
+                if (curr_mismatches > 0) {
+                    cigar_str += (std::to_string(curr_mismatches) + "X");
+                }
+                curr_mismatches = 0;
+                curr_matches++;
+            } else {
+                if (curr_matches > 0) {
+                    cigar_str += (std::to_string(curr_matches) + "=");
+                }
+                curr_matches = 0;
+                curr_mismatches++;
+            }
+        }
+
+        // Append the last match/mismatch
+        if (curr_matches > 0) {
+            cigar_str += (std::to_string(curr_matches) + "=");
+        }
+        if (curr_mismatches > 0) {
+            cigar_str += (std::to_string(curr_mismatches) + "X");
+        }
+
+        // Create Cigar object
+        Cigar cigar(Cigar::CLIPPED, seed.get_clipping());
+        cigar.append(Cigar(cigar_str));
+        cigar.append(Cigar::CLIPPED, seed.get_end_clipping());
+
+//        std::cout << node_sequence << " " << kmer_match << " " << cigar.to_string() << std::endl;
+        // Get cigar score
+        auto config = get_config();
+        score_t cigar_score = config.score_cigar(node_sequence, kmer_match, cigar);
+
+
+        // Construct and append Alignment
+        alignments.push_back(Alignment(
+                kmer_match,
+                std::move(nodes),
+                std::move(node_sequence),
+                cigar_score,
+                std::move(cigar),
+                0,
+                seed.get_orientation(),
+                seed.get_offset()
+                ));
+    }
+
+    return alignments;
+}
 
 template <class BOSSEdgeRange>
 void suffix_to_prefix(const DBGSuccinct &dbg_succ,
