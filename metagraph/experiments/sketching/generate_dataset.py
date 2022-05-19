@@ -20,8 +20,10 @@ INPUT_SEQ = "sequence.fa"
 METAGRAPH_PATH = "/Users/alex/metagraph/metagraph/build/metagraph"
 ALPHABET = ['A', 'C', 'T', 'G']
 
-GRAPH_SEQ_LEN = 10000
-MAX_K = 90
+# GRAPH_SEQ_LEN = 15
+# MAX_K = 5
+GRAPH_SEQ_LEN = 100
+MAX_K = 10
 
 if __name__ == '__main__':
     assert os.path.exists(DATASET_DIR), "Please create dataset directory"
@@ -38,7 +40,7 @@ if __name__ == '__main__':
         f.write(out_graph_seq)
 
     # Generate graph
-    for K in range(11, MAX_K, 10):
+    for K in range(2, MAX_K, 1):
         build_command = f"{METAGRAPH_PATH} build --mode canonical -k {K} -o {os.path.join(DATASET_DIR, INPUT_SEQ.split('.')[0] + f'_{K}')} {graph_seq_path}"
         subprocess.run(build_command.split())
         print(f"[LOG] Saved .dbg file from generated sequence - {K}")

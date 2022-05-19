@@ -9,16 +9,16 @@ from pprint import pprint
 
 DATASET_DIR = './data'
 METAGRAPH_PATH = "/Users/alex/metagraph/metagraph/build/metagraph"
-MAX_K = 90
+MAX_K = 10
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--sketch_dim', type=int, default=15)
+    parser.add_argument('--sketch_dim', type=int, default=11)
     parser.add_argument('--n_times_subsample', type=int, default=5)
-    parser.add_argument('--subsampled_sketch_dim', type=int, default=13)
+    parser.add_argument('--subsampled_sketch_dim', type=int, default=10)
     parser.add_argument('--mutation_rate', type=int, default=40)
-    parser.add_argument('--num_query_seqs', type=int, default=1000)
-    parser.add_argument('--parallel', type=int, default=7)
+    parser.add_argument('--num_query_seqs', type=int, default=100)
+    parser.add_argument('--parallel', type=int, default=1)
     args = parser.parse_args()
 
     if not os.path.exists("runs"):
@@ -26,7 +26,7 @@ if __name__ == '__main__':
 
     x = []
     y = []
-    K_VALS = list(range(11, MAX_K, 10))
+    K_VALS = list(range(2, MAX_K, 1))
     total_time = 0
 
     config = {
@@ -52,13 +52,17 @@ if __name__ == '__main__':
                   f"--mutation-rate {config['mutation-rate']} " \
                   f"--num-query-seqs {config['num-query-seqs']} " \
                   f"--parallel {config['parallel']} " \
-                  "-v " \
+                  f"--batch-size 20 " \
                   f"-i {DATASET_DIR}/sequence_{K}.dbg " \
                   "--experiment"
         result = subprocess.run(command.split(), capture_output=True, text=True)
+        # print(result.stdout)
+        # print(result.stderr)
         output = json.loads(result.stdout.strip().split('\n')[-1])
         x.append(output['avg_time'])
         y.append(output['recall'])
+        print(x)
+        print(y)
         end = time.time()
 
         print(f"Time: {(end - start):.2f}\n")

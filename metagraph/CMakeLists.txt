@@ -14,6 +14,8 @@ find_package(OpenMP REQUIRED)
 
 include_directories(.)
 
+#set(CMAKE_BUILD_TYPE Debug)
+
 # Google Flags Library
 add_subdirectory(${PROJECT_SOURCE_DIR}/src/third_party/gflags EXCLUDE_FROM_ALL)
 

@@ -44,6 +44,8 @@ class IDBGAligner {
 
     // Convenience method
     AlignmentResults align(std::string_view query) const;
+
+    mutable std::unordered_map<std::string, std::vector<Seed>> query_seeds;
 };
 
 

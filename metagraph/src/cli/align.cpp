@@ -367,6 +367,8 @@ int align_to_graph(Config *config) {
     // initialize alphabet
     ts::init_alphabet("dna4");
 
+
+
     std::vector<std::string> spellings;
     std::vector<std::vector<uint64_t>> paths;
     std::ofstream out(config->output_path);
@@ -392,6 +394,17 @@ int align_to_graph(Config *config) {
         }
         out.close();
     }
+//
+//    // DEBUG
+//    for (int i = 0; i < config->num_query_seqs; ++i) {
+//        std::cout << spellings[i] << std::endl;
+//        for(auto x : paths[i]) {
+//            std::cout << x << " ";
+//        }
+//        std::cout << std::endl;
+//    }
+//    // END DEBUG
+
     const auto &files = config->fnames;
 
     if (utils::ends_with(config->outfbase, ".gfa")) {
@@ -454,6 +467,18 @@ int align_to_graph(Config *config) {
     }
 
     DBGAlignerConfig aligner_config = initialize_aligner_config(*config);
+
+    // compute sketches
+    if (config->seeder == "sketch") {
+        // Compute sketches for graph
+        graph->compute_sketches(aligner_config.kmer_word_size,
+                                aligner_config.sketch_dim,
+                                aligner_config.subsequence_len,
+                                aligner_config.stride,
+                                aligner_config.seed,
+                                aligner_config.subsampled_sketch_dim,
+                                aligner_config.n_times_subsample);
+    }
 
     std::unique_ptr<AnnotatedDBG> anno_dbg;
     if (config->infbase_annotators.size()) {
@@ -529,14 +554,6 @@ int align_to_graph(Config *config) {
                     logger->trace("Sketch size (config): {}", config->sketch_dim);
                     logger->trace("Subsampling sketch size: {}", config->subsampled_sketch_dim);
                     logger->trace("Times to subsample: {}", config->n_times_subsample);
-                    // Compute sketches for graph
-                    graph->compute_sketches(aligner_config.kmer_word_size,
-                                            aligner_config.sketch_dim,
-                                            aligner_config.subsequence_len,
-                                            aligner_config.stride,
-                                            aligner_config.seed,
-                                            aligner_config.subsampled_sketch_dim,
-                                            aligner_config.n_times_subsample);
                     aligner = std::make_unique<DBGAligner<SuffixSeeder<SketchSeeder>, DefaultColumnExtender, LocalAlignmentLess>>(*aln_graph, aligner_config);
                 }
                 Timer start_alignment;
@@ -552,55 +569,56 @@ int align_to_graph(Config *config) {
         };
 
         thread_pool.join();
-        if (config->experiment && config->seeder == "sketch") {
-            // Compute recall
-            int recalled_paths = 0;
-            for (int i = 0; i < config->num_query_seqs; ++i) {
-                // For each path
-                auto path = paths[i];
-
-                auto forward_seeds_per_query = graph->seeds_per_query[2 * i];
-                auto rc_seeds_per_query = graph->seeds_per_query[2 * i + 1];
-                int recalled = 0;
-
-                // Check forward
-                for(int kmer_ = 0; kmer_ < path.size(); ++kmer_) {
-                    auto seeds_per_kmer = forward_seeds_per_query[kmer_];
-
-                    if(std::count(seeds_per_kmer.begin(), seeds_per_kmer.end(), path[kmer_])) {
-                        recalled++;
-                        break;
-                    }
-                }
-
-                // If I didn't recall forwards, then check the RC
-                if (recalled == 0) {
-                    for (int kmer_ = 0; kmer_ < path.size(); ++kmer_) {
-                        auto seeds_per_kmer = rc_seeds_per_query[kmer_];
-
-                        if (std::count(seeds_per_kmer.begin(), seeds_per_kmer.end(), path[kmer_])) {
-                            recalled++;
-                            break;
-                        }
-                    }
-                }
-
-                recalled_paths += recalled % 2; // Add 1 if we recalled either
-
-                if(!recalled)
-                    std::cout << "Did not recall seq: " << i << std::endl;
-            }
-            // TODO: So ugly...
-            std::cout << "{"
-                      << "\"recall\":" << (float) recalled_paths / config->num_query_seqs
-                      << ","
-                      << "\"avg_time\":" << alignment_time / config->num_query_seqs
-                      << ","
-                      << "\"mutation_rate\":" << config->mutation_rate
-                      << "}"
-                      << std::endl;
-            // End
-        }
+//
+//        if (config->experiment && config->seeder == "sketch") {
+//            // Compute recall
+//            int recalled_paths = 0;
+//            for (int i = 0; i < config->num_query_seqs; ++i) {
+//                // For each path
+//                auto path = paths[i];
+//
+//                auto forward_seeds_per_query = graph->seeds_per_query[2 * i];
+//                auto rc_seeds_per_query = graph->seeds_per_query[2 * i + 1];
+//                int recalled = 0;
+//
+//                // Check forward
+//                for(int kmer_ = 0; kmer_ < path.size(); ++kmer_) {
+//                    auto seeds_per_kmer = forward_seeds_per_query[kmer_];
+//
+//                    if(std::count(seeds_per_kmer.begin(), seeds_per_kmer.end(), path[kmer_])) {
+//                        recalled++;
+//                        break;
+//                    }
+//                }
+//
+//                // If I didn't recall forwards, then check the RC
+//                if (recalled == 0) {
+//                    for (int kmer_ = 0; kmer_ < path.size(); ++kmer_) {
+//                        auto seeds_per_kmer = rc_seeds_per_query[kmer_];
+//
+//                        if (std::count(seeds_per_kmer.begin(), seeds_per_kmer.end(), path[kmer_])) {
+//                            recalled++;
+//                            break;
+//                        }
+//                    }
+//                }
+//
+//                recalled_paths += recalled % 2; // Add 1 if we recalled either
+//
+//                if(!recalled)
+//                    std::cout << "Did not recall seq: " << i << std::endl;
+//            }
+//            // TODO: So ugly...
+//            std::cout << "{"
+//                      << "\"recall\":" << (float) recalled_paths / config->num_query_seqs
+//                      << ","
+//                      << "\"avg_time\":" << alignment_time / config->num_query_seqs
+//                      << ","
+//                      << "\"mutation_rate\":" << config->mutation_rate
+//                      << "}"
+//                      << std::endl;
+//            // End
+//        }
 
         logger->trace("File {} processed in {} sec, "
                       "num batches: {}, batch size: {} KB, "

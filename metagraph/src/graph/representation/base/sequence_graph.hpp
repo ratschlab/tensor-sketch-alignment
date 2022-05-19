@@ -170,9 +170,6 @@ class DeBruijnGraph : public SequenceGraph {
                                   uint32_t subsampled_sketch_dim,
                                   uint32_t n_times_subsample);
     std::vector<std::unordered_map<uint64_t, std::vector<node_index>>> sketch_maps; // multiple maps for undersampling
-    std::vector<std::unordered_map<uint64_t, std::vector<node_index>>> rc_sketch_maps; // multiple maps for undersampling
-
-    mutable std::vector<std::vector<std::vector<node_index>>> seeds_per_query;
     virtual ~DeBruijnGraph() {}
 
     virtual size_t get_k() const = 0;

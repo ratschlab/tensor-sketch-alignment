@@ -471,7 +471,6 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                                                                stride,
                                                                seed);
     sketch_maps = std::vector<std::unordered_map<uint64_t, std::vector<node_index>>>(n_times_subsample);
-    rc_sketch_maps = std::vector<std::unordered_map<uint64_t, std::vector<node_index>>>(n_times_subsample);
     auto rnd = std::mt19937(seed);
     call_sequences([&](const std::string& s, const std::vector<node_index>& v) {
         std::vector<uint8_t> node_sequence_to_int;

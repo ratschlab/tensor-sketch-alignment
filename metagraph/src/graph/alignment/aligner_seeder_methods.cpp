@@ -136,13 +136,11 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
             }
         }
 
-        //seeds_per_query[i][1..n] = vector of matched nodes for every 1..n kmer of query i
-        seeds_per_kmer.push_back(std::vector<node_index>(matches.begin(), matches.end()));
-        seeds.emplace_back(query_.substr(i, k),
-                           std::vector<node_index>(matches.begin(), matches.end()),
-                           orientation_, 0, i, end_clipping);
+        for(auto match : matches)
+            seeds.emplace_back(query_.substr(i, k),
+                               std::vector<node_index>({ match }),
+                               orientation_, 0, i, end_clipping);
     }
-    graph_.seeds_per_query.push_back(seeds_per_kmer);
     return seeds;
 }
 
