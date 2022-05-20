@@ -17,6 +17,7 @@
 #include "config/config.hpp"
 #include "load/load_graph.hpp"
 #include "load/load_annotated_graph.hpp"
+#include "graph/representation/base/sequence_graph.hpp"
 
 namespace mtg {
 namespace cli {
@@ -370,6 +371,7 @@ int align_to_graph(Config *config) {
 
     std::vector<std::string> spellings;
     std::vector<std::vector<uint64_t>> paths;
+
     std::ofstream out(config->output_path);
     if (config->experiment) {
         if(config->min_path_size > graph->max_index()) {
@@ -391,6 +393,12 @@ int align_to_graph(Config *config) {
             std::string header = ">Q" + std::to_string(i);
             out << header << std::endl;
             out << spellings[i] << std::endl;
+//
+//            std::cout << spellings[i] << std::endl;
+//            for(auto x : paths[i]){
+//                std::cout << x << " ";
+//            }
+//            std::cout << std::endl;
         }
         out.close();
     }
@@ -566,30 +574,80 @@ int align_to_graph(Config *config) {
 
         thread_pool.join();
 
+        float avg_time = data_reading_timer.elapsed() / config->num_query_seqs;
+
         // Compute the recall now
         int recalled_paths = 0;
-//        for(int i = 0; i < config->num_query_seqs; ++i) {
-//            std::string header = "Q" + std::to_string(i);
-//
-//            // Get query sequence and path
-//            std::string query_seq = spellings[i];
-//            std::vector<uint64_t> path = paths[i];
-//
-//            // Get matched seeds (fwd and bwd)
-//            auto fwd_seeds = forward_query_seeds[header];
-//            auto rc_seeds = rc_query_seeds[header];
-//
-//            int recalled = 0;
-//
-//            // Check if the forward sequence recalled
-//            for(auto seed : fwd_seeds) {
-//                auto seed_nodes = seed.get_nodes();
-//
-//                for(int start = seed.get_clipping(); start + graph->get_k() < seed.get_end_clipping(); ++start) {
-//
-//                }
-//            }
-//        }
+        for(int i = 0; i < config->num_query_seqs; ++i) {
+            std::string header = "Q" + std::to_string(i);
+
+            // Get query sequence and path
+            std::string query_seq = spellings[i];
+            std::vector<uint64_t> path = paths[i];
+
+            // Get matched seeds (fwd and bwd)
+            auto fwd_seeds = forward_query_seeds[header];
+            auto rc_seeds = rc_query_seeds[header];
+
+            int recalled = 0;
+            // Check if the forward sequence recalled
+            for(auto seed : fwd_seeds) {
+                auto seed_nodes = seed.get_nodes();
+
+                int match_start = seed.get_clipping();
+                int num_matched = seed_nodes.size();
+
+                for(int i = 0; i < num_matched; ++i) {
+                    std::string kmer = query_seq.substr(match_start + i, graph->get_k());
+                    uint64_t node = path[match_start + i];
+
+                    if (std::count(seed_nodes.begin(), seed_nodes.end(), node)) {
+                        recalled++;
+                        break;
+                    }
+                }
+
+                if (recalled > 0) {
+                    break;
+                }
+            }
+
+            // If the forward didn't recall, check rc
+            if (recalled == 0) {
+                mtg::graph::reverse_complement_seq_path(*graph, query_seq, path);
+                for(auto seed : rc_seeds) {
+                    auto seed_nodes = seed.get_nodes();
+
+                    int match_start = seed.get_clipping();
+                    int num_matched = seed_nodes.size();
+
+                    for(int i = 0; i < num_matched; ++i) {
+                        std::string kmer = query_seq.substr(match_start + i, graph->get_k());
+                        uint64_t node = path[match_start + i];
+
+                        if (std::count(seed_nodes.begin(), seed_nodes.end(), node)) {
+                            recalled++;
+                            break;
+                        }
+                    }
+
+                    if (recalled > 0) {
+                        break;
+                    }
+                }
+            }
+
+            if (recalled == 0) {
+                std::cout << "did not recall: " << header << " " << query_seq << std::endl;
+            }
+
+            recalled_paths += recalled % 2;
+
+        }
+        std::cout << "{"
+                  << "\"recall\":" << (float)recalled_paths / (float)config->num_query_seqs << ","
+                  << "\"avg_time\":" << avg_time
+                  << "}";
 
         logger->trace("File {} processed in {} sec, "
                       "num batches: {}, batch size: {} KB, "

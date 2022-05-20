@@ -9,16 +9,18 @@ from pprint import pprint
 
 DATASET_DIR = './data'
 METAGRAPH_PATH = "/Users/alex/metagraph/metagraph/build/metagraph"
-MAX_K = 10
+MAX_K = 90
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--sketch_dim', type=int, default=11)
-    parser.add_argument('--n_times_subsample', type=int, default=5)
-    parser.add_argument('--subsampled_sketch_dim', type=int, default=10)
-    parser.add_argument('--mutation_rate', type=int, default=40)
-    parser.add_argument('--num_query_seqs', type=int, default=100)
-    parser.add_argument('--parallel', type=int, default=1)
+    parser.add_argument('--sketch_dim', type=int, default=13)
+    parser.add_argument('--n_times_subsample', type=int, default=2)
+    parser.add_argument('--subsampled_sketch_dim', type=int, default=11)
+    parser.add_argument('--mutation_rate', type=int, default=10)
+    parser.add_argument('--num_query_seqs', type=int, default=1000)
+    parser.add_argument('--parallel', type=int, default=8)
+    parser.add_argument('--batch-size', type=int, default=50000)
+    parser.add_argument('--seeder', type=str, default="sketch")
     args = parser.parse_args()
 
     if not os.path.exists("runs"):
@@ -26,7 +28,7 @@ if __name__ == '__main__':
 
     x = []
     y = []
-    K_VALS = list(range(2, MAX_K, 1))
+    K_VALS = list(range(11, MAX_K, 10))
     total_time = 0
 
     config = {
@@ -35,7 +37,9 @@ if __name__ == '__main__':
         'subsampled_sketch_dim': args.subsampled_sketch_dim,
         'mutation-rate': args.mutation_rate,
         'num-query-seqs': args.num_query_seqs,
-        'parallel': args.parallel
+        'parallel': args.parallel,
+        'batch-size': args.batch_size,
+        'seeder': args.seeder
     }
 
     print("Launching experiment")
@@ -45,16 +49,17 @@ if __name__ == '__main__':
         start = time.time()
         print(K)
         command = f"{METAGRAPH_PATH} align " \
-                  "--seeder sketch " \
+                  f"--seeder {config['seeder']} " \
                   f"--sketch_dim {config['sketch_dim']} " \
                   f"--n_times_subsample {config['n_times_subsample']} " \
                   f"--subsampled_sketch_dim {config['subsampled_sketch_dim']} " \
                   f"--mutation-rate {config['mutation-rate']} " \
                   f"--num-query-seqs {config['num-query-seqs']} " \
                   f"--parallel {config['parallel']} " \
-                  f"--batch-size 20 " \
+                  f"--batch-size {config['batch-size']} " \
                   f"-i {DATASET_DIR}/sequence_{K}.dbg " \
                   "--experiment"
+        print(command)
         result = subprocess.run(command.split(), capture_output=True, text=True)
         # print(result.stdout)
         # print(result.stderr)

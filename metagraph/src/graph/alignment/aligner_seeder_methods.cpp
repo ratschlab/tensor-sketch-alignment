@@ -107,7 +107,6 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
     std::vector<std::vector<double>> sketches = tensor.compute(query_to_int);
     int num_sketches = sketches.size();
     // Repeat multiple times
-    std::vector<std::vector<node_index>> seeds_per_kmer;
     for (int i = 0; i < num_sketches; ++i, --end_clipping) {
         assert(i + k <= query_.size());
         std::unordered_set<node_index> matches;
@@ -126,7 +125,7 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
 
             for (int j = 0; j < subsampled_sketch.size(); ++j) {
                 double bit = subsampled_sketch[subsampled_sketch.size() - 1 - j];
-                if(std::abs(bit) < 1e-15)
+                if(std::abs(bit) < 1e-17)
                     bit = +0.0f;
                 discretized_sketch += std::signbit(bit) * pow(2, j);
             }
@@ -140,7 +139,6 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                 }
             }
         }
-
         for(auto match : matches)
             seeds.emplace_back(query_.substr(i, k),
                                std::vector<node_index>({ match }),

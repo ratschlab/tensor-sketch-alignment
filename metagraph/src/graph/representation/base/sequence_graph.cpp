@@ -475,10 +475,9 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
     call_sequences([&](const std::string& s, const std::vector<node_index>& v) {
         std::vector<uint8_t> node_sequence_to_int;
         for (unsigned char c: s) {
-            if(c != '$') {
-                node_sequence_to_int.push_back(ts::char2int(c));
-            }
+            node_sequence_to_int.push_back(ts::char2int(c));
         }
+
         // Compute sketches
         std::vector <std::vector<double>> sketches = tensor.compute(node_sequence_to_int);
         int n_nodes = v.size();
@@ -498,13 +497,11 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                 // Discretize
                 for (int j = 0; j < subsampled_sketch_dim; ++j) {
                     double bit = subsampled_sketch[subsampled_sketch.size() - 1 - j];
-                    if(std::abs(bit) < 1e-15)
+                    if(std::abs(bit) < 1e-17)
                         bit = +0.0f;
-                    discretized_sketch +=
-                            std::signbit(bit) * pow(2, j);
+                    discretized_sketch += std::signbit(bit) * pow(2, j);
                 }
 
-                // Save to sketch maps and repeat
                 sketch_maps[n_repeat][discretized_sketch].push_back(v[i]);
             }
         }
