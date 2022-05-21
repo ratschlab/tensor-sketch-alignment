@@ -8,18 +8,18 @@ import argparse
 from pprint import pprint
 
 DATASET_DIR = './data'
-METAGRAPH_PATH = "/Users/alex/metagraph/metagraph/build/metagraph"
+METAGRAPH_PATH = "/home/alex/metagraph/metagraph/build/metagraph"
 MAX_K = 90
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--sketch_dim', type=int, default=13)
-    parser.add_argument('--n_times_subsample', type=int, default=2)
-    parser.add_argument('--subsampled_sketch_dim', type=int, default=11)
-    parser.add_argument('--mutation_rate', type=int, default=10)
+    parser.add_argument('--sketch_dim', type=int, default=30)
+    parser.add_argument('--n_times_subsample', type=int, default=20)
+    parser.add_argument('--subsampled_sketch_dim', type=int, default=20)
+    parser.add_argument('--mutation_rate', type=int, default=15)
     parser.add_argument('--num_query_seqs', type=int, default=1000)
-    parser.add_argument('--parallel', type=int, default=8)
-    parser.add_argument('--batch-size', type=int, default=50000)
+    parser.add_argument('--parallel', type=int, default=24)
+    parser.add_argument('--batch-size', type=int, default=500)
     parser.add_argument('--seeder', type=str, default="sketch")
     args = parser.parse_args()
 
@@ -61,8 +61,6 @@ if __name__ == '__main__':
                   "--experiment"
         print(command)
         result = subprocess.run(command.split(), capture_output=True, text=True)
-        # print(result.stdout)
-        # print(result.stderr)
         output = json.loads(result.stdout.strip().split('\n')[-1])
         x.append(output['avg_time'])
         y.append(output['recall'])
@@ -85,7 +83,6 @@ if __name__ == '__main__':
         xaxis_title="Average time",
         yaxis_title="Recall",
     )
-    fig.show()
 
     experiment_dir = os.path.join("runs", strftime("%Y-%m-%dT%H:%M:%S", localtime()))
     os.mkdir(experiment_dir)

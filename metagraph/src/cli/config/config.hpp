@@ -21,7 +21,7 @@ class Config {
 
     // Sketches
     bool experiment = false;
-    std::string output_path = "/Users/alex/metagraph/metagraph/experiments/sketching/data/generated.fa";
+    std::string output_path = "/home/alex/metagraph/metagraph/experiments/sketching/data/generated.fa";
     std::string seeder = "default";
     using kmer_type = uint64_t;
     using seq_type = uint8_t;

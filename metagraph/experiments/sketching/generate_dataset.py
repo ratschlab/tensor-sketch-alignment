@@ -17,12 +17,12 @@ shutil.rmtree(DATASET_DIR)
 os.mkdir(DATASET_DIR)
 
 INPUT_SEQ = "sequence.fa"
-METAGRAPH_PATH = "/Users/alex/metagraph/metagraph/build/metagraph"
+METAGRAPH_PATH = "/home/alex/metagraph/metagraph/build/metagraph"
 ALPHABET = ['A', 'C', 'T', 'G']
 
 # GRAPH_SEQ_LEN = 15
 # MAX_K = 5
-GRAPH_SEQ_LEN = 1000
+GRAPH_SEQ_LEN = 10000
 MAX_K = 90
 
 if __name__ == '__main__':
