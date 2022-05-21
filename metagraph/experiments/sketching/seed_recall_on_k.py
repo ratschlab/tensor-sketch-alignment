@@ -8,8 +8,6 @@ import argparse
 from pprint import pprint
 
 DATASET_DIR = './data'
-METAGRAPH_PATH = "/Users/alex/metagraph/metagraph/build/metagraph"
-MAX_K = 90
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -21,7 +19,13 @@ if __name__ == '__main__':
     parser.add_argument('--parallel', type=int, default=8)
     parser.add_argument('--batch-size', type=int, default=500)
     parser.add_argument('--seeder', type=str, default="sketch")
+    parser.add_argument('--metagraph-path', type=str, required=True)
+    parser.add_argument('--max-k', type=int, required=True)
+
     args = parser.parse_args()
+
+    METAGRAPH_PATH = args.metagraph_path
+    MAX_K = args.max_k
 
     if not os.path.exists("runs"):
         os.mkdir("runs")
