@@ -20,7 +20,6 @@
 #include "sketch/tensor_block.hpp"
 #include "sketch/tensor_embedding.hpp"
 #include "sketch/tensor_slide.hpp"
-
 namespace mtg {
 namespace graph {
 
@@ -481,8 +480,10 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
         // Compute sketches
         std::vector <std::vector<double>> sketches = tensor.compute(node_sequence_to_int);
         int n_nodes = v.size();
-        for (int i = 0; i < n_nodes; ++i) {
-            for (int n_repeat = 0; n_repeat < n_times_subsample; n_repeat++) {
+
+        #pragma omp parallel for num_threads(get_num_threads())
+        for (int n_repeat = 0; n_repeat < n_times_subsample; n_repeat++) {
+            for (int i = 0; i < n_nodes; ++i) {
                 // For each node, subsample n_times_subsample times
                 uint64_t discretized_sketch = 0;
                 std::vector<double> sketch = sketches[i];

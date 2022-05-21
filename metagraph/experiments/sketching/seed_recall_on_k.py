@@ -8,7 +8,7 @@ import argparse
 from pprint import pprint
 
 DATASET_DIR = './data'
-METAGRAPH_PATH = "/home/alex/metagraph/metagraph/build/metagraph"
+METAGRAPH_PATH = "/Users/alex/metagraph/metagraph/build/metagraph"
 MAX_K = 90
 
 if __name__ == '__main__':
@@ -18,7 +18,7 @@ if __name__ == '__main__':
     parser.add_argument('--subsampled_sketch_dim', type=int, default=20)
     parser.add_argument('--mutation_rate', type=int, default=15)
     parser.add_argument('--num_query_seqs', type=int, default=1000)
-    parser.add_argument('--parallel', type=int, default=24)
+    parser.add_argument('--parallel', type=int, default=8)
     parser.add_argument('--batch-size', type=int, default=500)
     parser.add_argument('--seeder', type=str, default="sketch")
     args = parser.parse_args()
