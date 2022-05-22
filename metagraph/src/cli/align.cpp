@@ -578,6 +578,8 @@ int align_to_graph(Config *config) {
 
         // Compute the recall now
         int recalled_paths = 0;
+        float fwd_precision = 0.0;
+        float rc_precision = 0.0;
         for(int i = 0; i < config->num_query_seqs; ++i) {
             std::string header = "Q" + std::to_string(i);
 
@@ -588,7 +590,8 @@ int align_to_graph(Config *config) {
             // Get matched seeds (fwd and bwd)
             auto fwd_seeds = forward_query_seeds[header];
             auto rc_seeds = rc_query_seeds[header];
-
+            fwd_precision += fwd_seeds.size();
+            rc_precision += rc_seeds.size();
             int recalled = 0;
             // Check if the forward sequence recalled
             for(auto seed : fwd_seeds) {
@@ -637,15 +640,12 @@ int align_to_graph(Config *config) {
                 }
             }
 
-            if (recalled == 0) {
-                std::cout << "did not recall: " << header << " " << query_seq << std::endl;
-            }
-
             recalled_paths += recalled % 2;
-
         }
         std::cout << "{"
                   << "\"recall\":" << (float)recalled_paths / (float)config->num_query_seqs << ","
+                  << "\"fwd_precision\":" << (float)fwd_precision/ (float)config->num_query_seqs << ","
+                  << "\"rc_precision\":" << (float)rc_precision/ (float)config->num_query_seqs << ","
                   << "\"avg_time\":" << avg_time
                   << "}";
 

@@ -1,18 +1,22 @@
-# Generate the dataset
-metagraph_path="/home/alex/metagraph/metagraph/build/metagraph"
+############### Parameters ###############
+metagraph_path="/Users/alex/metagraph/metagraph/build/metagraph"
+output_path="./data/generated.fa"
 max_k=90
 graph_seq_len=1000
 
+# General params
+num_query_seqs=10
+parallel=$(getconf _NPROCESSORS_ONLN)
+mutation_rate=15
+
+
+# Generate the dataset
 gen_command="python generate_dataset.py --metagraph-path $metagraph_path --graph-seq-len $graph_seq_len --max-k $max_k"
 eval $gen_command
 
 
 # Get recall for sketch seeder
 
-# General params
-num_query_seqs=10
-parallel=$(getconf _NPROCESSORS_ONLN)
-mutation_rate=15
 
 # Sketch seeder params
 sketch_dim=30
@@ -21,7 +25,7 @@ subsampled_sketch_dim=20
 batch_size=500
 seeder="sketch"
 
-sketch_command="python seed_recall_on_k.py --sketch_dim $sketch_dim --n_times_subsample $n_times_subsample --subsampled_sketch_dim $subsampled_sketch_dim --mutation_rate $mutation_rate --num_query_seqs $num_query_seqs --parallel $parallel --batch-size $batch_size --seeder $seeder --metagraph-path $metagraph_path --max-k $max_k"
+sketch_command="python seed_recall_on_k.py --output-path $output_path --sketch_dim $sketch_dim --n_times_subsample $n_times_subsample --subsampled_sketch_dim $subsampled_sketch_dim --mutation_rate $mutation_rate --num_query_seqs $num_query_seqs --parallel $parallel --batch-size $batch_size --seeder $seeder --metagraph-path $metagraph_path --max-k $max_k"
 
 echo "[INFO] Launching the experiment on SKETCH"
 eval $sketch_command
@@ -30,7 +34,7 @@ eval $sketch_command
 batch_size=1000000
 seeder="default"
 
-default_command="python seed_recall_on_k.py --num_query_seqs $num_query_seqs --mutation_rate $mutation_rate --metagraph-path $metagraph_path --max-k $max_k --batch-size $batch_size --seeder $seeder"
+default_command="python seed_recall_on_k.py --output-path $output_path --num_query_seqs $num_query_seqs --mutation_rate $mutation_rate --metagraph-path $metagraph_path --max-k $max_k --batch-size $batch_size --seeder $seeder"
 
 echo "[INFO] Launching the experiment on DEFAULT"
 eval $default_command

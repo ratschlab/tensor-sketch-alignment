@@ -1,6 +1,7 @@
 import subprocess
 import json
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import time
 import os
 from time import localtime, strftime
@@ -21,7 +22,7 @@ if __name__ == '__main__':
     parser.add_argument('--seeder', type=str, default="sketch")
     parser.add_argument('--metagraph-path', type=str, required=True)
     parser.add_argument('--max-k', type=int, required=True)
-
+    parser.add_argument('--output-path', type=str, required=True)
     args = parser.parse_args()
 
     METAGRAPH_PATH = args.metagraph_path
@@ -31,7 +32,9 @@ if __name__ == '__main__':
         os.mkdir("runs")
 
     x = []
-    y = []
+    recall = []
+    fwd_precision = []
+    rc_precision = []
     K_VALS = list(range(11, MAX_K, 10))
     total_time = 0
 
@@ -54,6 +57,7 @@ if __name__ == '__main__':
         print(K)
         command = f"{METAGRAPH_PATH} align " \
                   f"--seeder {config['seeder']} " \
+                  f"--output-path {args.output_path} " \
                   f"--sketch_dim {config['sketch_dim']} " \
                   f"--n_times_subsample {config['n_times_subsample']} " \
                   f"--subsampled_sketch_dim {config['subsampled_sketch_dim']} " \
@@ -67,9 +71,13 @@ if __name__ == '__main__':
         result = subprocess.run(command.split(), capture_output=True, text=True)
         output = json.loads(result.stdout.strip().split('\n')[-1])
         x.append(output['avg_time'])
-        y.append(output['recall'])
+        recall.append(output['recall'])
+        fwd_precision.append(output['fwd_precision'])
+        rc_precision.append(output['rc_precision'])
         print(x)
-        print(y)
+        print(recall)
+        print(fwd_precision)
+        print(rc_precision)
         end = time.time()
 
         print(f"Time: {(end - start):.2f}\n")
@@ -78,15 +86,29 @@ if __name__ == '__main__':
 
     print(f"Experiment total time: {total_time:.2f}")
 
-    fig = go.Figure()
+    fig = make_subplots(rows=3, cols=1)
     fig.add_trace(
-        go.Scatter(x=x, y=y, text=K_VALS, textposition="top center", mode="lines+markers+text", name=f"Recall")
+        go.Scatter(x=x, y=recall, text=K_VALS, textposition="top center", mode="lines+markers+text", name=f"Recall"),
+        row=1,
+        col=1
     )
-    fig.update_layout(
-        title="Seed recall",
-        xaxis_title="Average time",
-        yaxis_title="Recall",
+    fig.add_trace(
+        go.Scatter(x=x, y=fwd_precision, text=K_VALS, textposition="top center", mode="lines+markers+text", name=f"Fwd Precision"),
+        row=2,
+        col=1
     )
+    fig.add_trace(
+        go.Scatter(x=x, y=rc_precision, text=K_VALS, textposition="top center", mode="lines+markers+text", name=f"RC Precision"),
+        row=3,
+        col=1
+    )
+
+    fig.update_xaxes(title_text="Average Time (s)", row=1, col=1)
+    fig.update_xaxes(title_text="Average Time (s)", row=2, col=1)
+    fig.update_xaxes(title_text="Average Time (s)", row=3, col=1)
+    fig.update_yaxes(title_text="Recall", row=1, col=1)
+    fig.update_yaxes(title_text="Fwd Precision", row=2, col=1)
+    fig.update_yaxes(title_text="RC Precision", row=3, col=1)
 
     experiment_dir = os.path.join("runs", strftime("%Y-%m-%dT%H:%M:%S", localtime()))
     os.mkdir(experiment_dir)
@@ -96,7 +118,9 @@ if __name__ == '__main__':
         json.dump(config, outfile, indent=4)
     data = {
         'avg_time': x,
-        'recall': y,
+        'recall': recall,
+        'fwd_precision': fwd_precision,
+        'rc_precision': rc_precision,
     }
     with open(os.path.join(experiment_dir, 'points.json'), 'w') as outfile:
         json.dump(data, outfile, indent=4)
