@@ -73,7 +73,8 @@ class TensorSlide : public Tensor<seq_type> {
             for (uint32_t p = 1; p <= tup_len; p++) {
                 // q-p must be smaller than i, hence the min in the condition
                 for (uint32_t q = std::min(p + i, (uint32_t)tup_len); q >= p; q--) {
-                    double z = (double)(q - p + 1) / std::min(i + 1, win_len + 1);
+//                    double z = (double)(q - p + 1) / std::min(i + 1, win_len + 1);
+                    double z = 1.0; // numerical instability
                     auto r = hashes[q - 1][seq[i]];
                     bool s = signs[q - 1][seq[i]];
                     if (s) {
@@ -94,7 +95,8 @@ class TensorSlide : public Tensor<seq_type> {
                         bool s = signs[p - 1][seq[ws]];
                         uint32_t q = p + diff;
                         // this computes t/(w-t); in our case t (the tuple length) is diff+1
-                        double z = (double)(diff + 1) / (win_len - diff);
+//                        double z = (double)(diff + 1) / (win_len - diff);
+                        double z = 1.0; // numerical instability
                         if (s) {
                             this->shift_sum_inplace(T1[p][q], T1[p + 1][q], r, -z);
                             this->shift_sum_inplace(T2[p][q], T2[p + 1][q], r, -z);

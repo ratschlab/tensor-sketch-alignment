@@ -114,11 +114,7 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
             std::vector<double> sketch = sketches[i];
 
             for (int j = 0; j < config_.embed_dim; ++j) {
-                if(std::abs(sketch[j]) < 1e-10)
-                    discretized_sketch.push_back(0); //numerical issues
-                else {
-                    discretized_sketch.push_back(std::signbit(sketch[j]));
-                }
+                discretized_sketch.push_back(std::signbit(sketch[j]));
             }
 
             // Check if hit in any of the n_times_subsample dicts

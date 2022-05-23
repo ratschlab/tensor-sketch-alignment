@@ -9,12 +9,18 @@ import argparse
 from pprint import pprint
 
 DATASET_DIR = './data'
+LOGS = []
+
+
+def print2(s):
+    print(s)
+    LOGS.append(s)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--sketch_dim', type=int, default=30)
-    parser.add_argument('--n_times_subsample', type=int, default=20)
-    parser.add_argument('--subsampled_sketch_dim', type=int, default=20)
+    parser.add_argument('--embed-dim', type=int, default=30)
+    parser.add_argument('--n-times-sketch', type=int, default=20)
     parser.add_argument('--mutation_rate', type=int, default=15)
     parser.add_argument('--num_query_seqs', type=int, default=1000)
     parser.add_argument('--parallel', type=int, default=8)
@@ -38,9 +44,8 @@ if __name__ == '__main__':
     total_time = 0
 
     config = {
-        'sketch_dim': args.sketch_dim,
-        'n_times_subsample': args.n_times_subsample,
-        'subsampled_sketch_dim': args.subsampled_sketch_dim,
+        'embed-dim': args.sketch_dim,
+        'n-times-sketch': args.n_times_subsample,
         'mutation-rate': args.mutation_rate,
         'num-query-seqs': args.num_query_seqs,
         'parallel': args.parallel,
@@ -48,40 +53,39 @@ if __name__ == '__main__':
         'seeder': args.seeder
     }
 
-    print("Launching experiment")
+    print2("Launching experiment")
     pprint(config)
 
     for K in K_VALS:
         start = time.time()
-        print(K)
+        print2(K)
         command = f"{METAGRAPH_PATH} align " \
                   f"--seeder {config['seeder']} " \
                   f"--output-path {args.output_path} " \
-                  f"--sketch_dim {config['sketch_dim']} " \
-                  f"--n_times_subsample {config['n_times_subsample']} " \
-                  f"--subsampled_sketch_dim {config['subsampled_sketch_dim']} " \
+                  f"--embed-dim {config['embed-dim']} " \
+                  f"--n-times-sketch {config['n-times-sketch']} " \
                   f"--mutation-rate {config['mutation-rate']} " \
                   f"--num-query-seqs {config['num-query-seqs']} " \
                   f"--parallel {config['parallel']} " \
                   f"--batch-size {config['batch-size']} " \
                   f"-i {DATASET_DIR}/sequence_{K}.dbg " \
                   "--experiment"
-        print(command)
+        print2(command)
         result = subprocess.run(command.split(), capture_output=True, text=True)
         output = json.loads(result.stdout.strip().split('\n')[-1])
         x.append(output['avg_time'])
         recall.append(output['recall'])
         precision.append(output['precision'])
-        print(x)
-        print(recall)
-        print(precision)
+        print2(x)
+        print2(recall)
+        print2(precision)
         end = time.time()
 
-        print(f"Time: {(end - start):.2f}\n")
+        print2(f"Time: {(end - start):.2f}\n")
 
         total_time += (end - start)
 
-    print(f"Experiment total time: {total_time:.2f}")
+    print2(f"Experiment total time: {total_time:.2f}")
 
     fig = make_subplots(rows=2, cols=1)
     fig.add_trace(
@@ -115,4 +119,6 @@ if __name__ == '__main__':
     with open(os.path.join(experiment_dir, 'points.json'), 'w') as outfile:
         json.dump(data, outfile, indent=4)
 
-    print(f"Logged experiment at: {experiment_dir}")
+    print2(f"Logged experiment at: {experiment_dir}")
+    with open(os.path.join(experiment_dir, 'logs.txt'), 'w') as f:
+        f.write('\n'.join(LOGS))

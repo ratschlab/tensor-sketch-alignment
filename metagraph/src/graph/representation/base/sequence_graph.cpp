@@ -487,11 +487,7 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
 
                 // Discretize
                 for (int j = 0; j < embed_dim; ++j) {
-                    if(std::abs(sketch[j]) < 1e-10)
-                        discretized_sketch.push_back(0); //numerical issues
-                    else {
-                        discretized_sketch.push_back(std::signbit(sketch[j]));
-                    }
+                    discretized_sketch.push_back(std::signbit(sketch[j]));
                 }
 
                 sketch_maps[n_repeat][discretized_sketch].emplace_back(v[i]);
