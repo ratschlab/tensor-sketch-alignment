@@ -20,6 +20,7 @@
 #include "sketch/tensor_block.hpp"
 #include "sketch/tensor_embedding.hpp"
 #include "sketch/tensor_slide.hpp"
+#include <boost/functional/hash.hpp>
 
 namespace utils {
     std::string make_suffix(const std::string &str, const std::string &suffix);
@@ -157,6 +158,15 @@ class SequenceGraph {
     std::vector<std::shared_ptr<GraphExtension>> extensions_;
 };
 
+class VectorHash {
+public:
+    size_t operator()(const std::vector<uint8_t> &vec) const {
+        return boost::hash_range(vec.begin(), vec.end());
+    }
+
+    VectorHash(){}
+    ~VectorHash(){}
+};
 
 class DeBruijnGraph : public SequenceGraph {
   public:
@@ -166,10 +176,8 @@ class DeBruijnGraph : public SequenceGraph {
                                   size_t embed_dim,
                                   size_t tuple_length,
                                   size_t stride,
-                                  uint32_t seed,
-                                  uint32_t subsampled_sketch_dim,
-                                  uint32_t n_times_subsample);
-    std::vector<std::unordered_map<uint64_t, std::vector<node_index>>> sketch_maps; // multiple maps for undersampling
+                                  uint32_t n_times_sketch);
+    std::vector<std::unordered_map<std::vector<uint8_t>, std::vector<node_index>, VectorHash>> sketch_maps;
     virtual ~DeBruijnGraph() {}
 
     virtual size_t get_k() const = 0;

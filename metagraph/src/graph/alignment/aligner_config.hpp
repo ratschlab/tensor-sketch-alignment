@@ -107,12 +107,10 @@ struct DBGAlignerConfig {
     using kmer_type = uint64_t;
     using seq_type = uint8_t;
     kmer_type kmer_word_size = ts::int_pow<kmer_type>(ts::alphabet_size, 1);
-    uint32_t seed = 1;
-    size_t sketch_dim = 20;
-    size_t subsequence_len = 3;
+    size_t embed_dim = 20;
+    size_t tuple_length = 3;
     size_t stride = 1;
-    uint32_t subsampled_sketch_dim = 100;
-    uint32_t n_times_subsample = 10;
+    uint32_t n_times_sketch = 10;
 };
 
 } // namespace align

@@ -1,3 +1,4 @@
+.cache/
 *.png
 data/
 runs/

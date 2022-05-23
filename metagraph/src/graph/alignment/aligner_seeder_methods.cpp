@@ -85,13 +85,6 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
     size_t k = graph_.get_k();
     assert(k >= config_.min_seed_length);
 
-    ts::TensorSlide<uint8_t> tensor = ts::TensorSlide<uint8_t>(config_.kmer_word_size,
-                                                               config_.sketch_dim,
-                                                               config_.subsequence_len,
-                                                               k,
-                                                               config_.stride,
-                                                               config_.seed);
-    auto rnd = std::mt19937(config_.seed);
 
     size_t end_clipping = query_.size() - k;
 
@@ -104,45 +97,41 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
     if (config_.max_seed_length < k)
         return seeds;
 
-    std::vector<std::vector<double>> sketches = tensor.compute(query_to_int);
-    int num_sketches = sketches.size();
-    // Repeat multiple times
-    for (int i = 0; i < num_sketches; ++i, --end_clipping) {
-        assert(i + k <= query_.size());
-        std::unordered_set<node_index> matches;
-        for (int n_repeat = 0; n_repeat < config_.n_times_subsample; n_repeat++) {
-            // For each kmer, subsample n_times_subsample times
-            uint64_t discretized_sketch = 0;
+    for (int n_repeat = 0; n_repeat < config_.n_times_sketch; n_repeat++) {
+        ts::TensorSlide<uint8_t> tensor = ts::TensorSlide<uint8_t>(config_.kmer_word_size,
+                                                                   config_.embed_dim,
+                                                                   config_.tuple_length,
+                                                                   k,
+                                                                   config_.stride,
+                                                                   n_repeat);
+        std::vector<std::vector<double>> sketches = tensor.compute(query_to_int);
+        end_clipping = query_.size() - k;
+        assert(sketches.size() == query_.size() - k + 1);
+        for (int i = 0; i < query_.size() - k + 1; ++i, --end_clipping) {
+            assert(i + k <= query_.size());
+            std::unordered_set<node_index> matches;
+            std::vector<uint8_t> discretized_sketch;
             std::vector<double> sketch = sketches[i];
 
-            // Subsample sketch
-            std::vector<double> subsampled_sketch;
-            std::sample(sketch.begin(),
-                        sketch.end(),
-                        std::back_inserter(subsampled_sketch),
-                        config_.subsampled_sketch_dim,
-                        rnd);
-
-            for (int j = 0; j < subsampled_sketch.size(); ++j) {
-                double bit = subsampled_sketch[subsampled_sketch.size() - 1 - j];
-                if(std::abs(bit) < 1e-17)
-                    bit = +0.0f;
-                discretized_sketch += std::signbit(bit) * pow(2, j);
+            for (int j = 0; j < config_.embed_dim; ++j) {
+                if(std::abs(sketch[j]) < 1e-10)
+                    discretized_sketch.push_back(0); //numerical issues
+                else {
+                    discretized_sketch.push_back(std::signbit(sketch[j]));
+                }
             }
 
             // Check if hit in any of the n_times_subsample dicts
-            for(int n_r = 0; n_r < config_.n_times_subsample; ++n_r) {
+            for(int n_r = 0; n_r < config_.n_times_sketch; ++n_r) {
                 if (graph_.sketch_maps[n_r].count(discretized_sketch)) {
                     // Got a hit
-                    auto matched_nodes = graph_.sketch_maps[n_r].at(discretized_sketch);
-                    matches.insert(matched_nodes.begin(), matched_nodes.end());
+                    for (auto match : graph_.sketch_maps[n_r].at(discretized_sketch))
+                        seeds.emplace_back(query_.substr(i, k),
+                                       std::vector<node_index>({ match }),
+                                       orientation_, 0, i, end_clipping);
                 }
             }
         }
-        for(auto match : matches)
-            seeds.emplace_back(query_.substr(i, k),
-                               std::vector<node_index>({ match }),
-                               orientation_, 0, i, end_clipping);
     }
     return seeds;
 }

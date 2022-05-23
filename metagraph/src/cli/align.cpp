@@ -55,9 +55,8 @@ DBGAlignerConfig initialize_aligner_config(const Config &config) {
         .alignment_mm_transition_score = config.alignment_mm_transition_score,
         .alignment_mm_transversion_score = config.alignment_mm_transversion_score,
         .score_matrix = DBGAlignerConfig::ScoreMatrix{},
-        .sketch_dim = config.sketch_dim,
-        .subsampled_sketch_dim = config.subsampled_sketch_dim,
-        .n_times_subsample = config.n_times_subsample
+        .embed_dim = config.embed_dim,
+        .n_times_sketch = config.n_times_sketch
     };
 
     c.set_scoring_matrix();
@@ -362,7 +361,7 @@ int align_to_graph(Config *config) {
     assert(config->infbase.size());
     // initialize graph
     auto graph = load_critical_dbg(config->infbase);
-    graph->print(std::cout);
+//     graph->print(std::cout);
 
     // initialize alphabet
     ts::init_alphabet("dna4");
@@ -393,12 +392,6 @@ int align_to_graph(Config *config) {
             std::string header = ">Q" + std::to_string(i);
             out << header << std::endl;
             out << spellings[i] << std::endl;
-//
-//            std::cout << spellings[i] << std::endl;
-//            for(auto x : paths[i]){
-//                std::cout << x << " ";
-//            }
-//            std::cout << std::endl;
         }
         out.close();
     }
@@ -471,12 +464,10 @@ int align_to_graph(Config *config) {
     if (config->seeder == "sketch") {
         // Compute sketches for graph
         graph->compute_sketches(aligner_config.kmer_word_size,
-                                aligner_config.sketch_dim,
-                                aligner_config.subsequence_len,
+                                aligner_config.embed_dim,
+                                aligner_config.tuple_length,
                                 aligner_config.stride,
-                                aligner_config.seed,
-                                aligner_config.subsampled_sketch_dim,
-                                aligner_config.n_times_subsample);
+                                aligner_config.n_times_sketch);
     }
 
     std::unique_ptr<AnnotatedDBG> anno_dbg;
@@ -553,10 +544,8 @@ int align_to_graph(Config *config) {
                     aligner = std::make_unique<DBGAligner<>>(*aln_graph, aligner_config);
                 } else if (config->seeder == "sketch") {
                     logger->trace("Using sketch seeder");
-                    logger->trace("Sketch size (aligner): {}", aligner_config.sketch_dim);
-                    logger->trace("Sketch size (config): {}", config->sketch_dim);
-                    logger->trace("Subsampling sketch size: {}", config->subsampled_sketch_dim);
-                    logger->trace("Times to subsample: {}", config->n_times_subsample);
+                    logger->trace("Sketch size (aligner): {}", aligner_config.embed_dim);
+                    logger->trace("Times to sketch: {}", config->n_times_sketch);
                     aligner = std::make_unique<DBGAligner<SketchSeeder, DefaultColumnExtender, LocalAlignmentLess>>(*aln_graph, aligner_config);
                 }
                 aligner->align_batch(batch,

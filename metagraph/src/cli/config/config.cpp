@@ -339,12 +339,10 @@ Config::Config(int argc, char *argv[]) {
             fnames.push_back(output_path);
         } else if (!strcmp(argv[i], "--mutation-rate")) {
             mutation_rate = std::stoi(get_value(i++));
-        } else if (!strcmp(argv[i], "--subsampled_sketch_dim")) {
-            subsampled_sketch_dim = std::stoi(get_value(i++));
-        } else if (!strcmp(argv[i], "--n_times_subsample")) {
-            n_times_subsample = std::stoi(get_value(i++));
-        } else if (!strcmp(argv[i], "--sketch_dim")) {
-            sketch_dim = std::stoi(get_value(i++));
+        } else if (!strcmp(argv[i], "--n-times-sketch")) {
+            n_times_sketch = std::stoi(get_value(i++));
+        } else if (!strcmp(argv[i], "--embed-dim")) {
+            embed_dim = std::stoi(get_value(i++));
         } else if (!strcmp(argv[i], "--seeder")) {
             seeder = get_value(i++);
         } else if (!strcmp(argv[i], "--anno-type")) {
