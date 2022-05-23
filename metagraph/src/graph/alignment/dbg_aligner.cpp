@@ -327,6 +327,7 @@ void DBGAligner<Seeder, Extender, AlignmentCompare>
                 explored_nodes_per_kmer, aligned_labels,
                 aligned_labels ? explored_nodes_per_kmer / aligned_labels : 0);
 
+        explored_nodes_per_kmer_per_query.insert({header, explored_nodes_per_kmer});
         callback(header, std::move(paths[i]));
     };
 }

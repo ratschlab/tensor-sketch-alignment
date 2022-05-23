@@ -506,6 +506,7 @@ int align_to_graph(Config *config) {
 
         std::unordered_map<std::string, std::vector<Seed>> forward_query_seeds;
         std::unordered_map<std::string, std::vector<Seed>> rc_query_seeds;
+        std::unordered_map<std::string, double> explored_nodes_per_kmer_per_query;
 
         while (it != end) {
             uint64_t num_bytes_read = 0;
@@ -569,6 +570,7 @@ int align_to_graph(Config *config) {
                 // Merge into the big map
                 forward_query_seeds.merge(aligner->forward_query_seeds);
                 rc_query_seeds.merge(aligner->rc_query_seeds);
+                explored_nodes_per_kmer_per_query.merge(aligner->explored_nodes_per_kmer_per_query);
             });
         };
 
@@ -578,8 +580,8 @@ int align_to_graph(Config *config) {
 
         // Compute the recall now
         int recalled_paths = 0;
-        float fwd_precision = 0.0;
-        float rc_precision = 0.0;
+        double precision = 0.0;
+        int n_precision_gt_zero = 0;
         for(int i = 0; i < config->num_query_seqs; ++i) {
             std::string header = "Q" + std::to_string(i);
 
@@ -590,8 +592,9 @@ int align_to_graph(Config *config) {
             // Get matched seeds (fwd and bwd)
             auto fwd_seeds = forward_query_seeds[header];
             auto rc_seeds = rc_query_seeds[header];
-            fwd_precision += fwd_seeds.size();
-            rc_precision += rc_seeds.size();
+            precision += explored_nodes_per_kmer_per_query[header];
+            if(explored_nodes_per_kmer_per_query[header] > 0.0)
+                n_precision_gt_zero++;
             int recalled = 0;
             // Check if the forward sequence recalled
             for(auto seed : fwd_seeds) {
@@ -644,8 +647,7 @@ int align_to_graph(Config *config) {
         }
         std::cout << "{"
                   << "\"recall\":" << (float)recalled_paths / (float)config->num_query_seqs << ","
-                  << "\"fwd_precision\":" << (float)fwd_precision/ (float)config->num_query_seqs << ","
-                  << "\"rc_precision\":" << (float)rc_precision/ (float)config->num_query_seqs << ","
+                  << "\"precision\":" << precision/ (double)n_precision_gt_zero << ","
                   << "\"avg_time\":" << avg_time
                   << "}";
 

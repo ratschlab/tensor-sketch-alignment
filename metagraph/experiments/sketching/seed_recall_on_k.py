@@ -33,8 +33,7 @@ if __name__ == '__main__':
 
     x = []
     recall = []
-    fwd_precision = []
-    rc_precision = []
+    precision = []
     K_VALS = list(range(11, MAX_K, 10))
     total_time = 0
 
@@ -72,12 +71,10 @@ if __name__ == '__main__':
         output = json.loads(result.stdout.strip().split('\n')[-1])
         x.append(output['avg_time'])
         recall.append(output['recall'])
-        fwd_precision.append(output['fwd_precision'])
-        rc_precision.append(output['rc_precision'])
+        precision.append(output['precision'])
         print(x)
         print(recall)
-        print(fwd_precision)
-        print(rc_precision)
+        print(precision)
         end = time.time()
 
         print(f"Time: {(end - start):.2f}\n")
@@ -86,29 +83,22 @@ if __name__ == '__main__':
 
     print(f"Experiment total time: {total_time:.2f}")
 
-    fig = make_subplots(rows=3, cols=1)
+    fig = make_subplots(rows=2, cols=1)
     fig.add_trace(
         go.Scatter(x=x, y=recall, text=K_VALS, textposition="top center", mode="lines+markers+text", name=f"Recall"),
         row=1,
         col=1
     )
     fig.add_trace(
-        go.Scatter(x=x, y=fwd_precision, text=K_VALS, textposition="top center", mode="lines+markers+text", name=f"Fwd Precision"),
+        go.Scatter(x=x, y=precision, text=K_VALS, textposition="top center", mode="lines+markers+text", name=f"Precision"),
         row=2,
-        col=1
-    )
-    fig.add_trace(
-        go.Scatter(x=x, y=rc_precision, text=K_VALS, textposition="top center", mode="lines+markers+text", name=f"RC Precision"),
-        row=3,
         col=1
     )
 
     fig.update_xaxes(title_text="Average Time (s)", row=1, col=1)
     fig.update_xaxes(title_text="Average Time (s)", row=2, col=1)
-    fig.update_xaxes(title_text="Average Time (s)", row=3, col=1)
     fig.update_yaxes(title_text="Recall", row=1, col=1)
-    fig.update_yaxes(title_text="Fwd Precision", row=2, col=1)
-    fig.update_yaxes(title_text="RC Precision", row=3, col=1)
+    fig.update_yaxes(title_text="Precision", row=3, col=1)
 
     experiment_dir = os.path.join("runs", strftime("%Y-%m-%dT%H:%M:%S", localtime()))
     os.mkdir(experiment_dir)
@@ -119,9 +109,9 @@ if __name__ == '__main__':
     data = {
         'avg_time': x,
         'recall': recall,
-        'fwd_precision': fwd_precision,
-        'rc_precision': rc_precision,
+        'precision': precision,
     }
+
     with open(os.path.join(experiment_dir, 'points.json'), 'w') as outfile:
         json.dump(data, outfile, indent=4)
 
