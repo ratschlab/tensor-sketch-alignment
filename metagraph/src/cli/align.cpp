@@ -634,12 +634,19 @@ int align_to_graph(Config *config) {
 
             recalled_paths += recalled % 2;
         }
-        std::cout << "{"
-                  << "\"recall\":" << (float)recalled_paths / (float)config->num_query_seqs << ","
-                  << "\"precision\":" << precision/ (double)n_precision_gt_zero << ","
-                  << "\"avg_time\":" << avg_time
-                  << "}";
 
+        if (n_precision_gt_zero > 0.0)
+          std::cout << "{"
+                    << "\"recall\":" << (float)recalled_paths / (float)config->num_query_seqs << ","
+                    << "\"precision\":" << precision/ (double)n_precision_gt_zero << ","
+                    << "\"avg_time\":" << avg_time
+                    << "}";
+        else
+          std::cout << "{"
+                    << "\"recall\":" << (float)recalled_paths / (float)config->num_query_seqs << ","
+                    << "\"precision\":" << 0 << ","
+                    << "\"avg_time\":" << avg_time
+                    << "}";
         logger->trace("File {} processed in {} sec, "
                       "num batches: {}, batch size: {} KB, "
                       "current mem usage: {} MB, total time {} sec",

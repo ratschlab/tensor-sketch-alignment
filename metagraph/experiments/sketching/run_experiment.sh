@@ -1,12 +1,12 @@
 # Parameters
-metagraph_path="/Users/alex/metagraph/metagraph/build/metagraph"
+metagraph_path="/home/alex/metagraph/metagraph/build/metagraph"
 output_path="./data/generated.fa"
 max_k=90
 graph_seq_len=1000
 ############
 
 # General params
-num_query_seqs=10
+num_query_seqs=1000
 parallel=$(getconf _NPROCESSORS_ONLN)
 mutation_rate=15
 ################
@@ -16,13 +16,13 @@ gen_command="python generate_dataset.py --metagraph-path $metagraph_path --graph
 eval $gen_command
 
 # Sketch seeder params
-embed_dim=30
-n_times_sketch=20
-batch_size=500
+embed_dim=50
+n_times_sketch=1
+batch_size=500000
 seeder="sketch"
 ######################
 
-sketch_command="python seed_recall_on_k.py --output-path $output_path --embed-dim $embed_dim --n_times_subsample $n_times_sketch --mutation_rate $mutation_rate --num_query_seqs $num_query_seqs --parallel $parallel --batch-size $batch_size --seeder $seeder --metagraph-path $metagraph_path --max-k $max_k"
+sketch_command="python seed_recall_on_k.py --output-path $output_path --embed-dim $embed_dim --n-times-sketch $n_times_sketch --mutation_rate $mutation_rate --num_query_seqs $num_query_seqs --parallel $parallel --batch-size $batch_size --seeder $seeder --metagraph-path $metagraph_path --max-k $max_k"
 
 echo "[INFO] Launching the experiment on SKETCH"
 eval $sketch_command

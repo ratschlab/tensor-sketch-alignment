@@ -44,8 +44,8 @@ if __name__ == '__main__':
     total_time = 0
 
     config = {
-        'embed-dim': args.sketch_dim,
-        'n-times-sketch': args.n_times_subsample,
+        'embed-dim': args.embed_dim,
+        'n-times-sketch': args.n_times_sketch,
         'mutation-rate': args.mutation_rate,
         'num-query-seqs': args.num_query_seqs,
         'parallel': args.parallel,
