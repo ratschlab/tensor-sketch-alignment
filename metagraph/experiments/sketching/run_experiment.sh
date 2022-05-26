@@ -1,14 +1,17 @@
+rm *.png # cleanup
 # Parameters
 metagraph_path="/home/alex/metagraph/metagraph/build/metagraph"
 output_path="./data/generated.fa"
 max_k=90
-graph_seq_len=1000
+graph_seq_len=5000
 ############
 
 # General params
 num_query_seqs=1000
 parallel=$(getconf _NPROCESSORS_ONLN)
 mutation_rate=15
+min_path_size=99
+max_path_size=100
 ################
 
 # Generate the dataset
@@ -16,13 +19,13 @@ gen_command="python generate_dataset.py --metagraph-path $metagraph_path --graph
 eval $gen_command
 
 # Sketch seeder params
-embed_dim=50
+embed_dim=200
 n_times_sketch=1
-batch_size=500000
+batch_size=500
 seeder="sketch"
 ######################
 
-sketch_command="python seed_recall_on_k.py --output-path $output_path --embed-dim $embed_dim --n-times-sketch $n_times_sketch --mutation_rate $mutation_rate --num_query_seqs $num_query_seqs --parallel $parallel --batch-size $batch_size --seeder $seeder --metagraph-path $metagraph_path --max-k $max_k"
+sketch_command="python seed_recall_on_k.py --output-path $output_path --embed-dim $embed_dim --n-times-sketch $n_times_sketch --mutation_rate $mutation_rate --num_query_seqs $num_query_seqs --parallel $parallel --batch-size $batch_size --seeder $seeder --metagraph-path $metagraph_path --max-k $max_k --max-path-size $max_path_size --min-path-size $min_path_size"
 
 echo "[INFO] Launching the experiment on SKETCH"
 eval $sketch_command
@@ -32,7 +35,7 @@ batch_size=1000000
 seeder="default"
 #######################
 
-default_command="python seed_recall_on_k.py --output-path $output_path --num_query_seqs $num_query_seqs --mutation_rate $mutation_rate --metagraph-path $metagraph_path --max-k $max_k --batch-size $batch_size --seeder $seeder"
+default_command="python seed_recall_on_k.py --output-path $output_path --num_query_seqs $num_query_seqs --mutation_rate $mutation_rate --metagraph-path $metagraph_path --max-k $max_k --batch-size $batch_size --seeder $seeder --max-path-size $max_path_size --min-path-size $min_path_size"
 
 echo "[INFO] Launching the experiment on DEFAULT"
 eval $default_command

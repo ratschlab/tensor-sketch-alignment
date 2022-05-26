@@ -14,7 +14,7 @@ LOGS = []
 
 def print2(s):
     print(s)
-    LOGS.append(s)
+    LOGS.append(str(s))
 
 
 if __name__ == '__main__':
@@ -29,6 +29,8 @@ if __name__ == '__main__':
     parser.add_argument('--metagraph-path', type=str, required=True)
     parser.add_argument('--max-k', type=int, required=True)
     parser.add_argument('--output-path', type=str, required=True)
+    parser.add_argument('--min-path-size', type=int, required=True)
+    parser.add_argument('--max-path-size', type=int, required=True)
     args = parser.parse_args()
 
     METAGRAPH_PATH = args.metagraph_path
@@ -50,7 +52,9 @@ if __name__ == '__main__':
         'num-query-seqs': args.num_query_seqs,
         'parallel': args.parallel,
         'batch-size': args.batch_size,
-        'seeder': args.seeder
+        'seeder': args.seeder,
+        'min-path-size': args.min_path_size,
+        'max-path-size': args.max_path_size
     }
 
     print2("Launching experiment")
@@ -66,6 +70,8 @@ if __name__ == '__main__':
                   f"--n-times-sketch {config['n-times-sketch']} " \
                   f"--mutation-rate {config['mutation-rate']} " \
                   f"--num-query-seqs {config['num-query-seqs']} " \
+                  f"--min-path-size {config['min-path-size']} " \
+                  f"--max-path-size {config['max-path-size']} " \
                   f"--parallel {config['parallel']} " \
                   f"--batch-size {config['batch-size']} " \
                   f"-i {DATASET_DIR}/sequence_{K}.dbg " \

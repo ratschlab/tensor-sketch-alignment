@@ -362,7 +362,8 @@ int align_to_graph(Config *config) {
     // initialize graph
     auto graph = load_critical_dbg(config->infbase);
 //     graph->print(std::cout);
-
+    
+    logger->trace("Number of nodes: {}", graph->max_index());
     // initialize alphabet
     ts::init_alphabet("dna4");
 
@@ -535,7 +536,6 @@ int align_to_graph(Config *config) {
                 }
 
                 std::unique_ptr<IDBGAligner> aligner;
-                logger->trace("Number of nodes: {}", graph->max_index());
                 if (anno_dbg) {
                     aligner = std::make_unique<LabeledAligner<>>(*aln_graph, aligner_config,
                                                                  anno_dbg->get_annotator());
