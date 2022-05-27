@@ -56,7 +56,9 @@ DBGAlignerConfig initialize_aligner_config(const Config &config) {
         .alignment_mm_transversion_score = config.alignment_mm_transversion_score,
         .score_matrix = DBGAlignerConfig::ScoreMatrix{},
         .embed_dim = config.embed_dim,
-        .n_times_sketch = config.n_times_sketch
+        .n_times_sketch = config.n_times_sketch,
+        .stride = config.stride,
+        .tuple_length = config.tuple_length
     };
 
     c.set_scoring_matrix();

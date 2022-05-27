@@ -459,7 +459,7 @@ void DeBruijnGraph
 void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                                      size_t embed_dim,
                                      size_t tuple_length,
-                                     size_t stride,
+                                     size_t m_stride,
                                      uint32_t n_times_sketch) {
     sketch_maps = std::vector<std::unordered_map<std::vector<uint8_t>, std::vector<node_index>, VectorHash>>(n_times_sketch);
     call_sequences([&](const std::string& s, const std::vector<node_index>& v) {
@@ -468,11 +468,11 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
             node_sequence_to_int.push_back(ts::char2int(c));
         }
 
+
         // Compute sketches
         int n_nodes = v.size();
         // Compute sketches for mmers instead of kmers then concat
         int ratio = 5;
-        int m_stride = 2;
         int m = (m_stride * get_k()) / ratio;
 
 //        #pragma omp parallel for num_threads(get_num_threads())
@@ -483,6 +483,7 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                                                                        m,
                                                                        1,
                                                                        n_repeat);
+
             std::vector<std::vector<double>> m_sketches = tensor.compute(node_sequence_to_int);
             // Must form the concatenations now
             std::vector<std::vector<double>> sketches;
@@ -492,10 +493,10 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                 std::vector<double> concat_sketch;
                 concat_sketch.clear();
 
+
                 for(int mmer = kmer; mmer < kmer + (ratio - 1) * m_stride; mmer += m_stride) {
                     concat_sketch.insert(concat_sketch.end(), m_sketches[mmer].begin(), m_sketches[mmer].end());
                 }
-
                 sketches.push_back(concat_sketch);
             }
 

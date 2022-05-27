@@ -126,7 +126,7 @@ class Tensor : public SketchBase<std::vector<double>, false> {
         size_t len = a.size();
         for (uint32_t i = 0; i < len; i++) {
             a[i] = (1 - z) * a[i] + z * b[(len + i - shift) % len];
-            assert(a[i] <= 1 + 1e-5 && a[i] >= -1e-5);
+            // assert(a[i] <= 1 + 1e-5 && a[i] >= -1e-5);
         }
     }
 

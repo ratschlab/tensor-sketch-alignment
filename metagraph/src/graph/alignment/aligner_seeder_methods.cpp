@@ -85,7 +85,6 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
     size_t k = graph_.get_k();
     assert(k >= config_.min_seed_length);
 
-
     size_t end_clipping = query_.size() - k;
 
     // Convert query string to integer alphabet
@@ -98,7 +97,7 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
         return seeds;
     
     int ratio = 5;
-    int m_stride = 2;
+    int m_stride = config_.stride;
     int m = (m_stride * k) / ratio;
     for (int n_repeat = 0; n_repeat < config_.n_times_sketch; n_repeat++) {
         ts::TensorSlide<uint8_t> tensor = ts::TensorSlide<uint8_t>(config_.kmer_word_size,
@@ -115,7 +114,6 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
             // So for kmer i, we concat mmers i:i + (ratio - 1)
             std::vector<double> concat_sketch;
             concat_sketch.clear();
-
             for(int mmer = kmer; mmer < kmer + (ratio - 1) * m_stride; mmer += m_stride) {
                 concat_sketch.insert(concat_sketch.end(), m_sketches[mmer].begin(), m_sketches[mmer].end());
             }
