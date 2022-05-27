@@ -492,7 +492,7 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                 std::vector<double> concat_sketch;
                 concat_sketch.clear();
 
-                for(int mmer = kmer; mmer < kmer + (ratio - 1); mmer += m_stride) {
+                for(int mmer = kmer; mmer < kmer + (ratio - 1) * m_stride; mmer += m_stride) {
                     concat_sketch.insert(concat_sketch.end(), m_sketches[mmer].begin(), m_sketches[mmer].end());
                 }
 
