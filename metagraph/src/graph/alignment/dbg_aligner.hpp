@@ -51,6 +51,9 @@ class IDBGAligner {
 };
 
 
+//template <class Seeder = SuffixSeeder<UniMEMSeeder>,
+//          class Extender = DefaultColumnExtender,
+//          class AlignmentCompare = LocalAlignmentLess>
 template <class Seeder = SuffixSeeder<UniMEMSeeder>,
           class Extender = DefaultColumnExtender,
           class AlignmentCompare = LocalAlignmentLess>

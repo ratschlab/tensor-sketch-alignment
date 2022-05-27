@@ -2,6 +2,7 @@
 
 #include <tsl/ordered_set.h>
 #include <random>
+#include <unordered_set>
 
 #include "common/logger.hpp"
 #include "common/unix_tools.hpp"
@@ -318,8 +319,8 @@ void generate_sequences(const DeBruijnGraph &graph,
     std::mt19937 gen(1);
     std::uniform_int_distribution<uint64_t> dis(1, graph.num_nodes());
 
-
-    for(int n_path = 0; n_path < num_paths; ++n_path) {
+    while (spellings.size() < num_paths) {
+        int curr_spellings_num = spellings.size();
         uint64_t root_node = dis(gen);
         std::string root_node_seq = graph.get_node_sequence(root_node);
         std::vector <uint64_t> nodes;
@@ -327,14 +328,14 @@ void generate_sequences(const DeBruijnGraph &graph,
         bool hit_dummy = false;
 
         // If root node contains a $, then just keep looking
-        while(root_node_seq.find("$") != string::npos) {
+        while (root_node_seq.find("$") != string::npos) {
             root_node = dis(gen);
             root_node_seq = graph.get_node_sequence(root_node);
         }
 
         nodes.push_back(root_node);
         spelling = root_node_seq;
-        while(nodes.size() < max_path_size && !hit_dummy && graph.outdegree(nodes.back()) > 0) {
+        while (nodes.size() < max_path_size && !hit_dummy && graph.outdegree(nodes.back()) > 0) {
             graph.call_outgoing_kmers(
                     nodes.back(),
                     [&](uint64_t target, char c) {
@@ -347,14 +348,15 @@ void generate_sequences(const DeBruijnGraph &graph,
                     });
         }
 
-        if (nodes.size() < min_path_size || nodes.size() > max_path_size) {
-            n_path--;
-            continue;
+        if (nodes.size() >= min_path_size && nodes.size() <= max_path_size) {
+            auto mutated_string = mutate(spelling, mutation_rate, alphabet);
+            spellings.push_back(mutated_string);
+            paths.push_back(nodes);
         }
 
-        spellings.push_back(mutate(spelling, mutation_rate, alphabet));
-        paths.push_back(nodes);
     }
+    std::unordered_set<string> unique(spellings.begin(), spellings.end());
+    fprintf(stderr, "Unique sequences: %lu/%lu\n", unique.size(), num_paths);
 }
 
 
@@ -390,7 +392,6 @@ int align_to_graph(Config *config) {
                            {'A', 'T', 'G', 'C'},
                            spellings,
                            paths);
-
         for (int i = 0; i < config->num_query_seqs; ++i) {
             std::string header = ">Q" + std::to_string(i);
             out << header << std::endl;
@@ -552,9 +553,9 @@ int align_to_graph(Config *config) {
                 }
                 aligner->align_batch(batch,
                     [&](const std::string &header, AlignmentResults&& paths) {
-                        const auto &res = format_alignment(header, paths, *graph, *config);
-                        std::lock_guard<std::mutex> lock(print_mutex);
-                        *out << res;
+//                        const auto &res = format_alignment(header, paths, *graph, *config);
+//                        std::lock_guard<std::mutex> lock(print_mutex);
+//                        *out << res;
                     }
                 );
 

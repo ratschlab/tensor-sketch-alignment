@@ -274,7 +274,6 @@ build_graph<DBGSuccinctCached>(uint64_t k,
     auto graph = build_graph<DBGSuccinct>(k, sequences, mode);
     if (mode == DeBruijnGraph::PRIMARY)
         graph->add_extension(std::make_shared<graph::NodeFirstCache>(get_dbg_succ(*graph)));
-
     return graph;
 }
 
