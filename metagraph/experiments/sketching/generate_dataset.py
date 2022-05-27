@@ -44,7 +44,7 @@ if __name__ == '__main__':
         f.write(out_graph_seq)
 
     # Generate graph
-    for K in range(11, MAX_K, 10):
+    for K in range(10, MAX_K, 10):
         build_command = f"{METAGRAPH_PATH} build --mode canonical -k {K} -o {os.path.join(DATASET_DIR, INPUT_SEQ.split('.')[0] + f'_{K}')} {graph_seq_path}"
         subprocess.run(build_command.split())
         print(f"[LOG] Saved .dbg file from generated sequence - {K}")

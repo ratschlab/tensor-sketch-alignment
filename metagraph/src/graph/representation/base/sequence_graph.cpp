@@ -470,23 +470,42 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
 
         // Compute sketches
         int n_nodes = v.size();
+        // Compute sketches for mmers instead of kmers then concat
+        int ratio = 5;
+        int m_stride = 2;
+        int m = (m_stride * get_k()) / ratio;
 
 //        #pragma omp parallel for num_threads(get_num_threads())
         for (int n_repeat = 0; n_repeat < n_times_sketch; n_repeat++) {
             ts::TensorSlide<uint8_t> tensor = ts::TensorSlide<uint8_t>(kmer_word_size,
                                                                        embed_dim,
                                                                        tuple_length,
-                                                                       get_k(),
-                                                                       stride,
+                                                                       m,
+                                                                       1,
                                                                        n_repeat);
-            std::vector <std::vector<double>> sketches = tensor.compute(node_sequence_to_int);
+            std::vector<std::vector<double>> m_sketches = tensor.compute(node_sequence_to_int);
+            // Must form the concatenations now
+            std::vector<std::vector<double>> sketches;
+            for (int kmer = 0; kmer < n_nodes; ++kmer) {
+                // For each kmer, we concat (ratio - 1) mmers
+                // So for kmer i, we concat mmers i:i + (ratio - 1)
+                std::vector<double> concat_sketch;
+                concat_sketch.clear();
+
+                for(int mmer = kmer; mmer < kmer + (ratio - 1); mmer += m_stride) {
+                    concat_sketch.insert(concat_sketch.end(), m_sketches[mmer].begin(), m_sketches[mmer].end());
+                }
+
+                sketches.push_back(concat_sketch);
+            }
+
             for (int i = 0; i < n_nodes; ++i) {
                 // For each node, subsample n_times_subsample times
                 std::vector<double> sketch = sketches[i];
                 std::vector<uint8_t> discretized_sketch;
 
                 // Discretize
-                for (int j = 0; j < embed_dim; ++j) {
+                for (int j = 0; j < embed_dim * (ratio - 1); ++j) {
                     discretized_sketch.push_back(std::signbit(sketch[j]));
                 }
 

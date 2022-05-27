@@ -42,7 +42,7 @@ if __name__ == '__main__':
     x = []
     recall = []
     precision = []
-    K_VALS = list(range(11, MAX_K, 10))
+    K_VALS = list(range(10, MAX_K, 10))
     total_time = 0
 
     config = {

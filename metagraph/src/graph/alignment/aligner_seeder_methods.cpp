@@ -17,7 +17,7 @@ typedef Alignment::score_t score_t;
 ExactSeeder::ExactSeeder(const DeBruijnGraph &graph,
                          std::string_view query,
                          bool orientation,
-                         std::vector<node_index>&& nodes,
+                          std::vector<node_index>&& nodes,
                          const DBGAlignerConfig &config)
       : graph_(graph),
         query_(query),
@@ -96,15 +96,32 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
     std::vector<Seed> seeds;
     if (config_.max_seed_length < k)
         return seeds;
-
+    
+    int ratio = 5;
+    int m_stride = 2;
+    int m = (m_stride * k) / ratio;
     for (int n_repeat = 0; n_repeat < config_.n_times_sketch; n_repeat++) {
         ts::TensorSlide<uint8_t> tensor = ts::TensorSlide<uint8_t>(config_.kmer_word_size,
                                                                    config_.embed_dim,
                                                                    config_.tuple_length,
-                                                                   k,
-                                                                   config_.stride,
+                                                                   m,
+                                                                   1,
                                                                    n_repeat);
-        std::vector<std::vector<double>> sketches = tensor.compute(query_to_int);
+        std::vector<std::vector<double>> m_sketches = tensor.compute(query_to_int);
+        // Must form the concatenations now
+        std::vector<std::vector<double>> sketches;
+        for (int kmer = 0; kmer < query_.size() - k + 1; ++kmer) {
+            // For each kmer, we concat (ratio - 1) mmers
+            // So for kmer i, we concat mmers i:i + (ratio - 1)
+            std::vector<double> concat_sketch;
+            concat_sketch.clear();
+
+            for(int mmer = kmer; mmer < kmer + (ratio - 1); mmer += m_stride) {
+                concat_sketch.insert(concat_sketch.end(), m_sketches[mmer].begin(), m_sketches[mmer].end());
+            }
+
+            sketches.push_back(concat_sketch);
+        }
         end_clipping = query_.size() - k;
         assert(sketches.size() == query_.size() - k + 1);
         for (int i = 0; i < query_.size() - k + 1; ++i, --end_clipping) {
@@ -113,7 +130,7 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
             std::vector<uint8_t> discretized_sketch;
             std::vector<double> sketch = sketches[i];
 
-            for (int j = 0; j < config_.embed_dim; ++j) {
+            for (int j = 0; j < config_.embed_dim * (ratio - 1); ++j) {
                 discretized_sketch.push_back(std::signbit(sketch[j]));
             }
 
