@@ -108,28 +108,29 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                                                                    n_repeat);
         std::vector<std::vector<double>> m_sketches = tensor.compute(query_to_int);
         // Must form the concatenations now
-        std::vector<std::vector<double>> sketches;
+        // 1234567 - 7 - 3 + 1
+        // 123 234 345 456 567
+        std::vector<std::vector<double>> sketches(query_.size() - k + 1);
+        std::vector<double> concat_sketch(ratio - 1);
         for (int kmer = 0; kmer < query_.size() - k + 1; ++kmer) {
             // For each kmer, we concat (ratio - 1) mmers
             // So for kmer i, we concat mmers i:i + (ratio - 1)
-            std::vector<double> concat_sketch;
             concat_sketch.clear();
             for(int mmer = kmer; mmer < kmer + (ratio - 1) * m_stride; mmer += m_stride) {
                 concat_sketch.insert(concat_sketch.end(), m_sketches[mmer].begin(), m_sketches[mmer].end());
             }
-
-            sketches.push_back(concat_sketch);
+            sketches[kmer] = concat_sketch;
         }
         end_clipping = query_.size() - k;
         assert(sketches.size() == query_.size() - k + 1);
         for (int i = 0; i < query_.size() - k + 1; ++i, --end_clipping) {
             assert(i + k <= query_.size());
             std::unordered_set<node_index> matches;
-            std::vector<uint8_t> discretized_sketch;
+            std::vector<uint8_t> discretized_sketch(config_.embed_dim * (ratio - 1));
             std::vector<double> sketch = sketches[i];
 
             for (int j = 0; j < config_.embed_dim * (ratio - 1); ++j) {
-                discretized_sketch.push_back(std::signbit(sketch[j]));
+                discretized_sketch[j] = std::signbit(sketch[j]);
             }
 
             // Check if hit in any of the n_times_subsample dicts

@@ -365,7 +365,7 @@ int align_to_graph(Config *config) {
     assert(config->infbase.size());
     // initialize graph
     auto graph = load_critical_dbg(config->infbase);
-//     graph->print(std::cout);
+    graph->print(std::cout);
     
     logger->trace("Number of nodes: {}", graph->max_index());
     // initialize alphabet
@@ -553,9 +553,9 @@ int align_to_graph(Config *config) {
                 }
                 aligner->align_batch(batch,
                     [&](const std::string &header, AlignmentResults&& paths) {
-//                        const auto &res = format_alignment(header, paths, *graph, *config);
-//                        std::lock_guard<std::mutex> lock(print_mutex);
-//                        *out << res;
+                        const auto &res = format_alignment(header, paths, *graph, *config);
+                        std::lock_guard<std::mutex> lock(print_mutex);
+                        *out << res;
                     }
                 );
 
