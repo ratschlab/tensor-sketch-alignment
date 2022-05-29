@@ -14,25 +14,20 @@ if __name__ == '__main__':
     SKETCH_FILE = args.sketch_json
     EXACT_FILE = args.exact_json
 
-    K_VALS = list(range(11, MAX_K, 10))
+    K_VALS = list(range(10, MAX_K, 10))
     
     sketch_data = json.load(open(SKETCH_FILE))
     exact_data = json.load(open(EXACT_FILE))
-
-    fig = make_subplots(rows=2, cols=1, subplot_titles=["Recall for sketch seeder @ varying k", "Recall for default seeder @ varying k"])
-    fig.add_trace(go.Scatter(x=sketch_data['avg_time'], y=sketch_data['recall'], text=K_VALS, textposition="top center", mode="lines+markers+text", name="Sketch"), row=1, col=1)
-    fig.add_trace(go.Scatter(x=exact_data['avg_time'], y=exact_data['recall'], text=K_VALS, textposition="top center", mode="lines+markers+text", name="Default"), row=2, col=1)
-    fig.update_xaxes(title_text="Average Time (s)", row=1, col=1)
-    fig.update_xaxes(title_text="Average Time (s)", row=2, col=1)
-    fig.update_yaxes(title_text="Recall", row=1, col=1)
-    fig.update_yaxes(title_text="Recall", row=2, col=1)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=sketch_data['avg_time'], y=sketch_data['recall'], text=K_VALS, textposition="top center", mode="lines+markers+text", name="Sketch"))
+    fig.add_trace(go.Scatter(x=exact_data['avg_time'], y=exact_data['recall'], text=K_VALS, textposition="top center", mode="lines+markers+text", name="Default"))
+    fig.update_xaxes(title_text="Average Time (s)", type="log")
+    fig.update_yaxes(title_text="Recall")
     fig.write_image("recall.png", scale=1, width=1920, height=1080)
 
-    fig = make_subplots(rows=2, cols=1, subplot_titles=["Precision for sketch seeder @ varying k", "Precision for default seeder @ varying k"])
-    fig.add_trace(go.Scatter(x=sketch_data['avg_time'], y=sketch_data['precision'], text=K_VALS, textposition="top center", mode="lines+markers+text", name="Sketch"), row=1, col=1)
-    fig.add_trace(go.Scatter(x=exact_data['avg_time'], y=exact_data['precision'], text=K_VALS, textposition="top center", mode="lines+markers+text", name="Default"), row=2, col=1)
-    fig.update_xaxes(title_text="Average Time (s)", row=1, col=1)
-    fig.update_xaxes(title_text="Average Time (s)", row=2, col=1)
-    fig.update_yaxes(title_text="Precision", row=1, col=1)
-    fig.update_yaxes(title_text="Precision", row=2, col=1)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=sketch_data['avg_time'], y=sketch_data['precision'], text=K_VALS, textposition="top center", mode="lines+markers+text", name="Sketch"))
+    fig.add_trace(go.Scatter(x=exact_data['avg_time'], y=exact_data['precision'], text=K_VALS, textposition="top center", mode="lines+markers+text", name="Default"))
+    fig.update_xaxes(title_text="Average Time (s)", type="log")
+    fig.update_yaxes(title_text="Precision")
     fig.write_image("precision.png", scale=1, width=1920, height=1080)

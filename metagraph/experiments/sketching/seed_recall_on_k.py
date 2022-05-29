@@ -78,6 +78,7 @@ if __name__ == '__main__':
                   "--experiment"
         print2(command)
         result = subprocess.run(command.split(), capture_output=True, text=True)
+        print(result.stderr)
         output = json.loads(result.stdout.strip().split('\n')[-1])
         x.append(output['avg_time'])
         recall.append(output['recall'])

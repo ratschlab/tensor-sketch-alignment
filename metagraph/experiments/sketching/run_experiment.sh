@@ -3,13 +3,13 @@ rm *.png # cleanup
 metagraph_path="/home/alex/metagraph/metagraph/build/metagraph"
 output_path="./data/generated.fa"
 max_k=90
-graph_seq_len=5000
+graph_seq_len=50000
 ############
 
 # General params
 num_query_seqs=1000
 parallel=$(getconf _NPROCESSORS_ONLN)
-mutation_rate=15
+mutation_rate=20
 min_path_size=99
 max_path_size=100
 ################
@@ -19,9 +19,9 @@ gen_command="python generate_dataset.py --metagraph-path $metagraph_path --graph
 eval $gen_command
 
 # Sketch seeder params
-embed_dim=200
+embed_dim=8
 n_times_sketch=1
-batch_size=500
+batch_size=100000
 seeder="sketch"
 ######################
 
@@ -31,7 +31,6 @@ echo "[INFO] Launching the experiment on SKETCH"
 eval $sketch_command
 
 # Default seeder params
-batch_size=1000000
 seeder="default"
 #######################
 

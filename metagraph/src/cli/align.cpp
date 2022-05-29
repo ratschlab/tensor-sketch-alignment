@@ -57,9 +57,9 @@ DBGAlignerConfig initialize_aligner_config(const Config &config) {
         .alignment_mm_transversion_score = config.alignment_mm_transversion_score,
         .score_matrix = DBGAlignerConfig::ScoreMatrix{},
         .embed_dim = config.embed_dim,
-        .n_times_sketch = config.n_times_sketch,
+        .tuple_length = config.tuple_length,
         .stride = config.stride,
-        .tuple_length = config.tuple_length
+        .n_times_sketch = config.n_times_sketch,
     };
 
     c.set_scoring_matrix();
@@ -553,9 +553,9 @@ int align_to_graph(Config *config) {
                 }
                 aligner->align_batch(batch,
                     [&](const std::string &header, AlignmentResults&& paths) {
-                        const auto &res = format_alignment(header, paths, *graph, *config);
-                        std::lock_guard<std::mutex> lock(print_mutex);
-                        *out << res;
+                        /* const auto &res = format_alignment(header, paths, *graph, *config); */
+                        /* std::lock_guard<std::mutex> lock(print_mutex); */
+                        /* *out << res; */
                     }
                 );
 
@@ -574,12 +574,12 @@ int align_to_graph(Config *config) {
         int recalled_paths = 0;
         double precision = 0.0;
         int n_precision_gt_zero = 0;
-        for(int i = 0; i < config->num_query_seqs; ++i) {
-            std::string header = "Q" + std::to_string(i);
+        for(int seq = 0; seq < config->num_query_seqs; ++seq) {
+            std::string header = "Q" + std::to_string(seq);
 
             // Get query sequence and path
-            std::string query_seq = spellings[i];
-            std::vector<uint64_t> path = paths[i];
+            std::string query_seq = spellings[seq];
+            std::vector<uint64_t> path = paths[seq];
 
             // Get matched seeds (fwd and bwd)
             auto fwd_seeds = forward_query_seeds[header];
@@ -611,29 +611,29 @@ int align_to_graph(Config *config) {
             }
 
             // If the forward didn't recall, check rc
-            if (recalled == 0) {
-                mtg::graph::reverse_complement_seq_path(*graph, query_seq, path);
-                for(auto seed : rc_seeds) {
-                    auto seed_nodes = seed.get_nodes();
+            /* if (recalled == 0) { */
+            /*     mtg::graph::reverse_complement_seq_path(*graph, query_seq, path); */
+            /*     for(auto seed : rc_seeds) { */
+            /*         auto seed_nodes = seed.get_nodes(); */
 
-                    int match_start = seed.get_clipping();
-                    int num_matched = seed_nodes.size();
+            /*         int match_start = seed.get_clipping(); */
+            /*         int num_matched = seed_nodes.size(); */
 
-                    for(int i = 0; i < num_matched; ++i) {
-                        std::string kmer = query_seq.substr(match_start + i, graph->get_k());
-                        uint64_t node = path[match_start + i];
+            /*         for(int i = 0; i < num_matched; ++i) { */
+            /*             std::string kmer = query_seq.substr(match_start + i, graph->get_k()); */
+            /*             uint64_t node = path[match_start + i]; */
 
-                        if (std::count(seed_nodes.begin(), seed_nodes.end(), node)) {
-                            recalled++;
-                            break;
-                        }
-                    }
+            /*             if (std::count(seed_nodes.begin(), seed_nodes.end(), node)) { */
+            /*                 recalled++; */
+            /*                 break; */
+            /*             } */
+            /*         } */
 
-                    if (recalled > 0) {
-                        break;
-                    }
-                }
-            }
+            /*         if (recalled > 0) { */
+            /*             break; */
+            /*         } */
+            /*     } */
+            /* } */
 
             recalled_paths += recalled % 2;
         }
