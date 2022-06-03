@@ -373,7 +373,7 @@ int align_to_graph(Config *config) {
     auto graph = load_critical_dbg(config->infbase);
     graph->print(std::cout);
     
-    fprintf(stderr, "Number of nodes: %lu", graph->max_index());
+    fprintf(stderr, "Number of nodes: %lu\n", graph->max_index());
     // initialize alphabet
     ts::init_alphabet("dna4");
 
@@ -615,7 +615,7 @@ int align_to_graph(Config *config) {
                     break;
                 }
             }
-            recalled_paths += recalled % 2;
+            recalled_paths += (recalled > 0);
         }
 
         if (n_precision_gt_zero > 0.0)
