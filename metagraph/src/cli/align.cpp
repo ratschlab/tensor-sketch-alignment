@@ -367,7 +367,7 @@ int align_to_graph(Config *config) {
     auto graph = load_critical_dbg(config->infbase);
     graph->print(std::cout);
     
-    logger->trace("Number of nodes: {}", graph->max_index());
+    fprintf(stderr, "Number of nodes: %lu", graph->max_index());
     // initialize alphabet
     ts::init_alphabet("dna4");
 
