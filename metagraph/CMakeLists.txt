@@ -14,7 +14,7 @@ find_package(OpenMP REQUIRED)
 
 include_directories(.)
 
-# set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Debug)
 
 # Google Flags Library
 add_subdirectory(${PROJECT_SOURCE_DIR}/src/third_party/gflags EXCLUDE_FROM_ALL)
@@ -112,14 +112,14 @@ add_subdirectory(external-libraries/jsoncpp)
 
 add_compile_options(
   -Wall -Wextra
-  -D_THREAD_SAFE -pthread -g -O3
+  -D_THREAD_SAFE -pthread -g -O0
   # -DDBGDEBUG -Wconversion -Wsign-conversion -Werror=shadow=compatible-local
 )
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(
     -Wno-exit-time-destructors
-    -Wno-deprecated-declarations -g -O3
+    -Wno-deprecated-declarations -g -O0
   )
 
   if (NOT CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
@@ -224,14 +224,14 @@ endif()
 
 
 # Profile with gprof
-set(CMAKE_CXX_FLAGS_PROFILE "-pg -DNDEBUG -g -O3")
-set(CMAKE_EXE_LINKER_FLAGS_PROFILE "-pg -g -O3")
-set(CMAKE_SHARED_LINKER_FLAGS_PROFILE "-pg -g -O3")
+set(CMAKE_CXX_FLAGS_PROFILE "-pg -DNDEBUG -g -O0")
+set(CMAKE_EXE_LINKER_FLAGS_PROFILE "-pg -g -O0")
+set(CMAKE_SHARED_LINKER_FLAGS_PROFILE "-pg -g -O0")
 
 # Profile with gperftools
-set(CMAKE_CXX_FLAGS_GPROFILE "-fno-omit-frame-pointer -DNDEBUG -g -O3")
-set(CMAKE_EXE_LINKER_FLAGS_GPROFILE "-g -O3")
-set(CMAKE_SHARED_LINKER_FLAGS_GPROFILE "-g -O3")
+set(CMAKE_CXX_FLAGS_GPROFILE "-fno-omit-frame-pointer -DNDEBUG -g -O0")
+set(CMAKE_EXE_LINKER_FLAGS_GPROFILE "-g -O0")
+set(CMAKE_SHARED_LINKER_FLAGS_GPROFILE "-g -O0")
 
 set(PROFILER_LIBRARIES PROFILER_LIBRARIES-NOTFOUND)
 find_library(PROFILER_LIBRARIES
@@ -250,7 +250,7 @@ if(${CMAKE_BUILD_TYPE} MATCHES GPROFILE)
 endif()
 
 # Debug build type
-set(CMAKE_CXX_FLAGS_DEBUG "-g -O3")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 
 # Link time optimization
 if(LINK_OPT)
@@ -264,9 +264,9 @@ if(LINK_OPT)
 endif()
 
 # Thread sanitizer build type
-set(CMAKE_CXX_FLAGS_THREADS "-g -fsanitize=thread -O3")
-set(CMAKE_EXE_LINKER_FLAGS_THREADS "-g -fsanitize=thread -O3")
-set(CMAKE_SHARED_LINKER_FLAGS_THREADS "-g -fsanitize=thread -O3")
+set(CMAKE_CXX_FLAGS_THREADS "-g -fsanitize=thread -O0")
+set(CMAKE_EXE_LINKER_FLAGS_THREADS "-g -fsanitize=thread -O0")
+set(CMAKE_SHARED_LINKER_FLAGS_THREADS "-g -fsanitize=thread -O0")
 
 link_directories(
   ${CMAKE_BINARY_DIR}/KMC

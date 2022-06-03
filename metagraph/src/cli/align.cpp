@@ -559,9 +559,9 @@ int align_to_graph(Config *config) {
                 }
                 aligner->align_batch(batch,
                     [&](const std::string &header, AlignmentResults&& paths) {
-                        /* const auto &res = format_alignment(header, paths, *graph, *config); */
-                        /* std::lock_guard<std::mutex> lock(print_mutex); */
-                        /* *out << res; */
+                        const auto &res = format_alignment(header, paths, *graph, *config);
+                        std::lock_guard<std::mutex> lock(print_mutex);
+                        *out << res;
                     }
                 );
 
@@ -581,7 +581,6 @@ int align_to_graph(Config *config) {
         double precision = 0.0;
         int n_precision_gt_zero = 0;
         for(int seq_i = 0; seq_i < config->num_query_seqs; ++seq_i) {
-            std::cout << seq_i << std::endl;
             std::string header = "Q" + std::to_string(seq_i);
 
             // Get query sequence and path
@@ -590,7 +589,7 @@ int align_to_graph(Config *config) {
 
             // Get matched seeds (fwd and bwd)
             auto fwd_seeds = forward_query_seeds[header];
-            auto rc_seeds = rc_query_seeds[header];
+            auto rc_seeds = rc_query_seeds[header]; //unused
             precision += explored_nodes_per_kmer_per_query[header];
             if(explored_nodes_per_kmer_per_query[header] > 0.0)
                 n_precision_gt_zero++;
@@ -607,7 +606,6 @@ int align_to_graph(Config *config) {
                     uint64_t node = path[match_start + i];
 
                     if (std::count(seed_nodes.begin(), seed_nodes.end(), node)) {
-                        std::cout << kmer << " " << graph->get_node_sequence(node) << std::endl;
                         recalled++;
                         break;
                     }

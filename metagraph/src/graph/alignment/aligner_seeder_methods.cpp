@@ -93,6 +93,7 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
         query_to_int.push_back(ts::char2int(c));
     }
     std::vector<Seed> seeds;
+    seeds.reserve(query_.size() - k);
     if (config_.max_seed_length < k)
         return seeds;
     
