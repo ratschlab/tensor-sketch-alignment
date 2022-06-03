@@ -158,16 +158,6 @@ class SequenceGraph {
     std::vector<std::shared_ptr<GraphExtension>> extensions_;
 };
 
-class VectorHash {
-public:
-    size_t operator()(const std::vector<uint8_t> &vec) const {
-        return boost::hash_range(vec.begin(), vec.end());
-    }
-
-    VectorHash(){}
-    ~VectorHash(){}
-};
-
 class DeBruijnGraph : public SequenceGraph {
   public:
     enum Mode { BASIC = 0, CANONICAL, PRIMARY };
@@ -177,7 +167,7 @@ class DeBruijnGraph : public SequenceGraph {
                                   size_t tuple_length,
                                   size_t stride,
                                   uint32_t n_times_sketch);
-    std::vector<std::unordered_map<std::vector<uint8_t>, std::vector<node_index>, VectorHash>> sketch_maps;
+    std::vector<std::unordered_map<int64_t, std::vector<node_index>>> sketch_maps;
     virtual ~DeBruijnGraph() {}
 
     virtual size_t get_k() const = 0;

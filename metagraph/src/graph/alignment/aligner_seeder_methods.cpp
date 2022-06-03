@@ -99,6 +99,7 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
     int ratio = 5;
     int m_stride = config_.stride;
     int m = (m_stride * k) / ratio;
+    std::vector<std::vector<double>> m_sketches(query_.size() - k + 1);
     for (int n_repeat = 0; n_repeat < config_.n_times_sketch; n_repeat++) {
         ts::TensorSlide<uint8_t> tensor = ts::TensorSlide<uint8_t>(config_.kmer_word_size,
                                                                    config_.embed_dim,
@@ -106,42 +107,31 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                                                                    m,
                                                                    1,
                                                                    n_repeat);
-        std::vector<std::vector<double>> m_sketches = tensor.compute(query_to_int);
-        // Must form the concatenations now
-        // 1234567 - 7 - 3 + 1
-        // 123 234 345 456 567
-        std::vector<std::vector<double>> sketches(query_.size() - k + 1);
-        std::vector<double> concat_sketch(ratio - 1);
-        for (int kmer = 0; kmer < query_.size() - k + 1; ++kmer) {
+        m_sketches.clear();
+        m_sketches = tensor.compute(query_to_int);
+        end_clipping = query_.size() - k;
+        for (int kmer = 0; kmer < query_.size() - k + 1; ++kmer, --end_clipping) {
             // For each kmer, we concat (ratio - 1) mmers
             // So for kmer i, we concat mmers i:i + (ratio - 1)
-            concat_sketch.clear();
+            int64_t discretized_sketch = 0;
+            int bitset_pos = 0;
+            // 8 8 8 8 bits (0 4 8 12)
             for(int mmer = kmer; mmer < kmer + (ratio - 1) * m_stride; mmer += m_stride) {
-                concat_sketch.insert(concat_sketch.end(), m_sketches[mmer].begin(), m_sketches[mmer].end());
-            }
-            sketches[kmer] = concat_sketch;
-        }
-        end_clipping = query_.size() - k;
-        assert(sketches.size() == query_.size() - k + 1);
-        for (int i = 0; i < query_.size() - k + 1; ++i, --end_clipping) {
-            assert(i + k <= query_.size());
-            std::unordered_set<node_index> matches;
-            std::vector<uint8_t> discretized_sketch(config_.embed_dim * (ratio - 1));
-            std::vector<double> sketch = sketches[i];
-
-            for (int j = 0; j < config_.embed_dim * (ratio - 1); ++j) {
-                discretized_sketch[j] = std::signbit(sketch[j]);
-            }
-
-            // Check if hit in any of the n_times_subsample dicts
-            for(int n_r = 0; n_r < config_.n_times_sketch; ++n_r) {
-                if (graph_.sketch_maps[n_r].count(discretized_sketch)) {
-                    // Got a hit
-                    for (auto match : graph_.sketch_maps[n_r].at(discretized_sketch))
-                        seeds.emplace_back(query_.substr(i, k),
-                                       std::vector<node_index>({ match }),
-                                       orientation_, 0, i, end_clipping);
+                // set bits
+                auto m_sketch = m_sketches[mmer];
+                for(int i = 0; i < config_.embed_dim; ++i) {
+                    discretized_sketch |= (std::signbit(m_sketch[i]) << (bitset_pos * 4 + i));
                 }
+                bitset_pos++;
+            }
+
+            // for one repeat we have one kmer with its discretized sketch
+
+            if (graph_.sketch_maps[n_repeat].count(discretized_sketch)) {
+                for (auto match : graph_.sketch_maps[n_repeat].at(discretized_sketch))
+                    seeds.emplace_back(query_.substr(kmer, k),
+                                   std::vector<node_index>({ match }),
+                                   orientation_, 0, kmer, end_clipping);
             }
         }
     }
@@ -150,9 +140,10 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
 
 auto SketchSeeder::get_alignments() const -> std::vector<Alignment> {
     std::vector<Seed> seeds = get_seeds();
-    std::vector<Alignment> alignments;
+    std::vector<Alignment> alignments(seeds.size());
 
-    for(Seed seed : seeds) {
+    for(int i = 0; i < seeds.size(); ++i) {
+        Seed seed = seeds[i];
         // Query sequence match
         std::string_view kmer_match = seed.get_query_view().substr(0, graph_.get_k());
 
@@ -204,7 +195,7 @@ auto SketchSeeder::get_alignments() const -> std::vector<Alignment> {
 
 
         // Construct and append Alignment
-        alignments.push_back(Alignment(
+        alignments[i] = Alignment(
                 kmer_match,
                 std::move(nodes),
                 std::move(node_sequence),
@@ -213,7 +204,7 @@ auto SketchSeeder::get_alignments() const -> std::vector<Alignment> {
                 0,
                 seed.get_orientation(),
                 seed.get_offset()
-                ));
+                );
     }
 
     return alignments;

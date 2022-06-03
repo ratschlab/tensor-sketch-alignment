@@ -461,7 +461,7 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                                      size_t tuple_length,
                                      size_t m_stride,
                                      uint32_t n_times_sketch) {
-    sketch_maps = std::vector<std::unordered_map<std::vector<uint8_t>, std::vector<node_index>, VectorHash>>(n_times_sketch);
+    sketch_maps = std::vector<std::unordered_map<int64_t, std::vector<node_index>>>(n_times_sketch);
     call_sequences([&](const std::string& s, const std::vector<node_index>& v) {
         std::vector<uint8_t> node_sequence_to_int;
         for (unsigned char c: s) {
@@ -485,32 +485,23 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                                                                        n_repeat);
 
             std::vector<std::vector<double>> m_sketches = tensor.compute(node_sequence_to_int);
-            // Must form the concatenations now
-            std::vector<std::vector<double>> sketches;
+            // Each m_sketch is up to 8 bits(embed_dim size), need to discretize
+
             for (int kmer = 0; kmer < n_nodes; ++kmer) {
                 // For each kmer, we concat (ratio - 1) mmers
                 // So for kmer i, we concat mmers i:i + (ratio - 1)
-                std::vector<double> concat_sketch;
-                concat_sketch.clear();
-
-
+                int64_t discretized_sketch = 0;
+                int bitset_pos = 0;
+                // 8 8 8 8 bits (0 4 8 12)
                 for(int mmer = kmer; mmer < kmer + (ratio - 1) * m_stride; mmer += m_stride) {
-                    concat_sketch.insert(concat_sketch.end(), m_sketches[mmer].begin(), m_sketches[mmer].end());
+                    // set bits
+                    auto m_sketch = m_sketches[mmer];
+                    for(int i = 0; i < embed_dim; ++i) {
+                       discretized_sketch |= (std::signbit(m_sketch[i]) << (bitset_pos * 4 + i));
+                    }
+                    bitset_pos++;
                 }
-                sketches.push_back(concat_sketch);
-            }
-
-            for (int i = 0; i < n_nodes; ++i) {
-                // For each node, subsample n_times_subsample times
-                std::vector<double> sketch = sketches[i];
-                std::vector<uint8_t> discretized_sketch;
-
-                // Discretize
-                for (int j = 0; j < embed_dim * (ratio - 1); ++j) {
-                    discretized_sketch.push_back(std::signbit(sketch[j]));
-                }
-
-                sketch_maps[n_repeat][discretized_sketch].emplace_back(v[i]);
+                sketch_maps[n_repeat][discretized_sketch].emplace_back(v[kmer]);
             }
         }
     });

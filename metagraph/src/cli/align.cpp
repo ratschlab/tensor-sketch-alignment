@@ -352,6 +352,12 @@ void generate_sequences(const DeBruijnGraph &graph,
             auto mutated_string = mutate(spelling, mutation_rate, alphabet);
             spellings.push_back(mutated_string);
             paths.push_back(nodes);
+
+            // debug
+            std::cout << spelling << " --- " << mutated_string << std::endl;
+            for(auto x: nodes)
+                std::cout << x << " ";
+            std::cout << std::endl;
         }
 
     }
@@ -574,12 +580,13 @@ int align_to_graph(Config *config) {
         int recalled_paths = 0;
         double precision = 0.0;
         int n_precision_gt_zero = 0;
-        for(int seq = 0; seq < config->num_query_seqs; ++seq) {
-            std::string header = "Q" + std::to_string(seq);
+        for(int seq_i = 0; seq_i < config->num_query_seqs; ++seq_i) {
+            std::cout << seq_i << std::endl;
+            std::string header = "Q" + std::to_string(seq_i);
 
             // Get query sequence and path
-            std::string query_seq = spellings[seq];
-            std::vector<uint64_t> path = paths[seq];
+            std::string query_seq = spellings[seq_i];
+            std::vector<uint64_t> path = paths[seq_i];
 
             // Get matched seeds (fwd and bwd)
             auto fwd_seeds = forward_query_seeds[header];
@@ -600,6 +607,7 @@ int align_to_graph(Config *config) {
                     uint64_t node = path[match_start + i];
 
                     if (std::count(seed_nodes.begin(), seed_nodes.end(), node)) {
+                        std::cout << kmer << " " << graph->get_node_sequence(node) << std::endl;
                         recalled++;
                         break;
                     }
@@ -609,32 +617,6 @@ int align_to_graph(Config *config) {
                     break;
                 }
             }
-
-            // If the forward didn't recall, check rc
-            /* if (recalled == 0) { */
-            /*     mtg::graph::reverse_complement_seq_path(*graph, query_seq, path); */
-            /*     for(auto seed : rc_seeds) { */
-            /*         auto seed_nodes = seed.get_nodes(); */
-
-            /*         int match_start = seed.get_clipping(); */
-            /*         int num_matched = seed_nodes.size(); */
-
-            /*         for(int i = 0; i < num_matched; ++i) { */
-            /*             std::string kmer = query_seq.substr(match_start + i, graph->get_k()); */
-            /*             uint64_t node = path[match_start + i]; */
-
-            /*             if (std::count(seed_nodes.begin(), seed_nodes.end(), node)) { */
-            /*                 recalled++; */
-            /*                 break; */
-            /*             } */
-            /*         } */
-
-            /*         if (recalled > 0) { */
-            /*             break; */
-            /*         } */
-            /*     } */
-            /* } */
-
             recalled_paths += recalled % 2;
         }
 
