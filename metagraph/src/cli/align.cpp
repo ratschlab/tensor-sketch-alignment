@@ -336,16 +336,23 @@ void generate_sequences(const DeBruijnGraph &graph,
         nodes.push_back(root_node);
         spelling = root_node_seq;
         while (nodes.size() < max_path_size && !hit_dummy && graph.outdegree(nodes.back()) > 0) {
+            std::vector<uint64_t> kmers;
+            std::vector<uint8_t> next_char;
             graph.call_outgoing_kmers(
                     nodes.back(),
                     [&](uint64_t target, char c) {
-                        if(c == '$') {
+                        if(c == '$' || target == DeBruijnGraph::npos) {
                             hit_dummy = true;
                         } else {
-                            nodes.push_back(target);
-                            spelling += c;
+                            kmers.push_back(target);
+                            next_char.push_back(c);
                         }
                     });
+            if (hit_dummy)
+                break;
+            auto pos = rand() % kmers.size();
+            nodes.push_back(kmers[pos]);
+            spelling += next_char[pos];
         }
 
         if (nodes.size() >= min_path_size && nodes.size() <= max_path_size) {
@@ -355,8 +362,9 @@ void generate_sequences(const DeBruijnGraph &graph,
 
             // debug
             std::cout << spelling << " --- " << mutated_string << std::endl;
-            for(auto x: nodes)
-                std::cout << x << " ";
+            for(int x = 0; x < nodes.size(); ++x) {
+                std::cout << spelling.substr(x,graph.get_k()) << "--" << mutated_string.substr(x,graph.get_k()) << " " << nodes[x] << "\n";
+            }
             std::cout << std::endl;
         }
 
@@ -371,7 +379,7 @@ int align_to_graph(Config *config) {
     assert(config->infbase.size());
     // initialize graph
     auto graph = load_critical_dbg(config->infbase);
-    graph->print(std::cout);
+    // graph->print(std::cout);
     
     fprintf(stderr, "Number of nodes: %lu\n", graph->max_index());
     // initialize alphabet
