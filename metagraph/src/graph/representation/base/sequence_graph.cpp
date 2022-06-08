@@ -462,6 +462,7 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                                      size_t m_stride,
                                      uint32_t n_times_sketch) {
     sketch_maps = std::vector<std::unordered_map<int64_t, std::vector<node_index>>>(n_times_sketch);
+    map_backward = std::unordered_map<node_index, node_index>();
     call_sequences([&](const std::string& s, const std::vector<node_index>& v) {
         std::vector<uint8_t> node_sequence_to_int;
         for (unsigned char c: s) {
@@ -507,6 +508,7 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
 //                for(int step = 1; step <= k - 1; ++step) {
 //                }
                 sketch_maps[n_repeat][discretized_sketch].emplace_back(v[kmer - (get_k() - 1)]); // map back
+                map_backward[v[kmer]] = v[kmer - (get_k() - 1)];
             }
         }
     });

@@ -361,11 +361,11 @@ void generate_sequences(const DeBruijnGraph &graph,
             paths.push_back(nodes);
 
             // debug
-            std::cout << spelling << " --- " << mutated_string << std::endl;
-            for(int x = 0; x < nodes.size(); ++x) {
-                std::cout << spelling.substr(x,graph.get_k()) << "--" << mutated_string.substr(x,graph.get_k()) << " " << nodes[x] << "\n";
-            }
-            std::cout << std::endl;
+//            std::cout << spelling << " --- " << mutated_string << std::endl;
+//            for(int x = 0; x < nodes.size(); ++x) {
+//                std::cout << spelling.substr(x,graph.get_k()) << "--" << mutated_string.substr(x,graph.get_k()) << " " << nodes[x] << "\n";
+//            }
+//            std::cout << std::endl;
         }
 
     }
@@ -613,7 +613,7 @@ int align_to_graph(Config *config) {
                     std::string kmer = query_seq.substr(match_start + i, graph->get_k());
                     uint64_t node = path[match_start + i];
 
-                    if (std::count(seed_nodes.begin(), seed_nodes.end(), node)) {
+                    if (std::count(seed_nodes.begin(), seed_nodes.end(), graph->map_backward[node])) {
                         recalled++;
                         break;
                     }

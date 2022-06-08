@@ -168,6 +168,7 @@ class DeBruijnGraph : public SequenceGraph {
                                   size_t stride,
                                   uint32_t n_times_sketch);
     std::vector<std::unordered_map<int64_t, std::vector<node_index>>> sketch_maps;
+    std::unordered_map<node_index, node_index> map_backward;
     virtual ~DeBruijnGraph() {}
 
     virtual size_t get_k() const = 0;
