@@ -139,72 +139,58 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
     return seeds;
 }
 
+const DBGSuccinct& get_base_dbg_succ(const DeBruijnGraph *graph) {
+    if (const auto *wrapper = dynamic_cast<const DBGWrapper<>*>(graph))
+        graph = &wrapper->get_graph();
+
+    try {
+        return dynamic_cast<const DBGSuccinct&>(*graph);
+    } catch (const std::bad_cast &e) {
+        logger->error("SuffixSeeder can be used only with succinct graph representation");
+        throw e;
+    }
+}
+
 auto SketchSeeder::get_alignments() const -> std::vector<Alignment> {
     std::vector<Seed> seeds = get_seeds();
     std::vector<Alignment> alignments(seeds.size());
-
+    const DBGSuccinct &dbg_succ = get_base_dbg_succ(&this->graph_);
+    auto k = graph_.get_k();
+    const auto &boss = dbg_succ.get_boss();
     for(int i = 0; i < seeds.size(); ++i) {
         Seed seed = seeds[i];
         // Query sequence match
-        std::string_view kmer_match = seed.get_query_view().substr(0, graph_.get_k());
+        std::string_view kmer_match = seed.get_query_view().substr(0, k);
 
         // Matched nodes (will always be just 1)
         std::vector<node_index> nodes = seed.get_nodes();
-        std::string node_sequence = graph_.get_node_sequence(nodes[0]);
-
+        auto match = nodes[0];
+        char last_char = boss.decode(boss.get_W(dbg_succ.kmer_to_boss_index(match)) % boss.alph_size);
+        std::string last_char_string = std::string(1, last_char);
         std::string cigar_str;
-
-        // Compute character comparison and make cigar string
-        int k = graph_.get_k();
-        int curr_matches = 0;
-        int curr_mismatches = 0;
-        for(int i = 0; i < k; ++i) {
-            char kmer_match_char = kmer_match[i];
-            char node_char = node_sequence[i];
-
-            if(kmer_match_char == node_char) {
-                if (curr_mismatches > 0) {
-                    cigar_str += (std::to_string(curr_mismatches) + "X");
-                }
-                curr_mismatches = 0;
-                curr_matches++;
-            } else {
-                if (curr_matches > 0) {
-                    cigar_str += (std::to_string(curr_matches) + "=");
-                }
-                curr_matches = 0;
-                curr_mismatches++;
-            }
-        }
-
-        // Append the last match/mismatch
-        if (curr_matches > 0) {
-            cigar_str += (std::to_string(curr_matches) + "=");
-        }
-        if (curr_mismatches > 0) {
-            cigar_str += (std::to_string(curr_mismatches) + "X");
-        }
-
-        // Create Cigar object
         Cigar cigar(Cigar::CLIPPED, seed.get_clipping());
-        cigar.append(Cigar(cigar_str));
-        cigar.append(Cigar::CLIPPED, seed.get_end_clipping());
+        if (last_char == kmer_match.front()) {
+            cigar.append(Cigar("1="));
+        } else {
+            cigar.append(Cigar("1X"));
+        }
+        cigar.append(Cigar::CLIPPED, seed.get_end_clipping() + k - 1);
 
         // Get cigar score
         auto config = get_config();
-        score_t cigar_score = config.score_cigar(node_sequence, kmer_match, cigar);
+        score_t cigar_score = config.score_cigar(last_char_string, kmer_match.substr(0, 1), cigar);
 
 
         // Construct and append Alignment
         alignments[i] = Alignment(
-                kmer_match,
+                kmer_match.substr(0, 1),
                 std::move(nodes),
-                std::move(node_sequence),
+                std::move(last_char_string),
                 cigar_score,
                 std::move(cigar),
                 0,
                 seed.get_orientation(),
-                seed.get_offset()
+                k-1
                 );
     }
 
@@ -257,17 +243,6 @@ void suffix_to_prefix(const DBGSuccinct &dbg_succ,
     }
 }
 
-const DBGSuccinct& get_base_dbg_succ(const DeBruijnGraph *graph) {
-    if (const auto *wrapper = dynamic_cast<const DBGWrapper<>*>(graph))
-        graph = &wrapper->get_graph();
-
-    try {
-        return dynamic_cast<const DBGSuccinct&>(*graph);
-    } catch (const std::bad_cast &e) {
-        logger->error("SuffixSeeder can be used only with succinct graph representation");
-        throw e;
-    }
-}
 
 template <class BaseSeeder>
 void SuffixSeeder<BaseSeeder>::generate_seeds() {

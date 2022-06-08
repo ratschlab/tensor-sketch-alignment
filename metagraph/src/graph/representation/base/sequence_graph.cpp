@@ -487,7 +487,7 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
             std::vector<std::vector<double>> m_sketches = tensor.compute(node_sequence_to_int);
             // Each m_sketch is up to 8 bits(embed_dim size), need to discretize
 
-            for (int kmer = 0; kmer < n_nodes; ++kmer) {
+            for (int kmer = get_k() - 1; kmer < n_nodes; ++kmer) {
                 // For each kmer, we concat (ratio - 1) mmers
                 // So for kmer i, we concat mmers i:i + (ratio - 1)
                 int64_t discretized_sketch = 0;
@@ -501,7 +501,12 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                     }
                     bitset_pos++;
                 }
-                sketch_maps[n_repeat][discretized_sketch].emplace_back(v[kmer]);
+
+                // Here, go back from v[kmer] k-1 steps
+                auto current_node = v[kmer];
+//                for(int step = 1; step <= k - 1; ++step) {
+//                }
+                sketch_maps[n_repeat][discretized_sketch].emplace_back(v[kmer - (get_k() - 1)]); // map back
             }
         }
     });
