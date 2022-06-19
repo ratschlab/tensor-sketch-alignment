@@ -496,10 +496,18 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                 for(int mmer = kmer; mmer < kmer + (ratio - 1) * m_stride; mmer += m_stride) {
                     // set bits
                     auto m_sketch = m_sketches[mmer];
+//                    for(auto x: m_sketch) {
+//                       std::cout << std::signbit(x);
+//                    }
                     for(int i = 0; i < embed_dim; ++i) {
                         // std::cout << (bitset_pos + i) << std::endl;
-                        discretized_sketch |= (std::signbit(m_sketch[i]) << (bitset_pos + i));
+                        //std::cout << "bit: " << std::signbit(m_sketch[embed_dim - i - 1]) << std::endl;
+                        //boost::multiprecision::uint256_t x = (std::signbit(m_sketch[embed_dim - i - 1]) << (bitset_pos + i));
+                        discretized_sketch <<= 1;
+                        discretized_sketch |= std::signbit(m_sketch[i]);
+                        //std::cout << discretized_sketch << std::endl;
                     }
+                    // std::cout << discretized_sketch << std::endl;
                     bitset_pos+=embed_dim;
                 }
 

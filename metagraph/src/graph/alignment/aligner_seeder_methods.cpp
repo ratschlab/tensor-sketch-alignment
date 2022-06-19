@@ -122,7 +122,8 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                 // set bits
                 auto m_sketch = m_sketches[mmer];
                 for(int i = 0; i < config_.embed_dim; ++i) {
-                    discretized_sketch |= (std::signbit(m_sketch[i]) << (bitset_pos + i));
+                    discretized_sketch <<= 1;
+                    discretized_sketch |= std::signbit(m_sketch[i]);
                 }
                 bitset_pos+=config_.embed_dim;
             }
