@@ -114,16 +114,17 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
         for (int kmer = 0; kmer < query_.size() - k + 1; ++kmer, --end_clipping) {
             // For each kmer, we concat (ratio - 1) mmers
             // So for kmer i, we concat mmers i:i + (ratio - 1)
-            int64_t discretized_sketch = 0;
+            boost::multiprecision::uint256_t discretized_sketch = 0;
             int bitset_pos = 0;
             // 8 8 8 8 bits (0 4 8 12)
+            // 0 64 128 256 (64 64 64 64)
             for(int mmer = kmer; mmer < kmer + (ratio - 1) * m_stride; mmer += m_stride) {
                 // set bits
                 auto m_sketch = m_sketches[mmer];
                 for(int i = 0; i < config_.embed_dim; ++i) {
-                    discretized_sketch |= (std::signbit(m_sketch[i]) << (bitset_pos * 4 + i));
+                    discretized_sketch |= (std::signbit(m_sketch[i]) << (bitset_pos + i));
                 }
-                bitset_pos++;
+                bitset_pos+=config_.embed_dim;
             }
 
             // for one repeat we have one kmer with its discretized sketch

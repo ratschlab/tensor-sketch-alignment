@@ -461,7 +461,7 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                                      size_t tuple_length,
                                      size_t m_stride,
                                      uint32_t n_times_sketch) {
-    sketch_maps = std::vector<std::unordered_map<int64_t, std::vector<node_index>>>(n_times_sketch);
+    sketch_maps = std::vector<std::unordered_map<boost::multiprecision::uint256_t, std::vector<node_index>>>(n_times_sketch);
     map_backward = std::unordered_map<node_index, node_index>();
     call_sequences([&](const std::string& s, const std::vector<node_index>& v) {
         std::vector<uint8_t> node_sequence_to_int;
@@ -491,16 +491,16 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
             for (int kmer = get_k() - 1; kmer < n_nodes; ++kmer) {
                 // For each kmer, we concat (ratio - 1) mmers
                 // So for kmer i, we concat mmers i:i + (ratio - 1)
-                int64_t discretized_sketch = 0;
+                boost::multiprecision::uint256_t discretized_sketch = 0;
                 int bitset_pos = 0;
-                // 8 8 8 8 bits (0 4 8 12)
                 for(int mmer = kmer; mmer < kmer + (ratio - 1) * m_stride; mmer += m_stride) {
                     // set bits
                     auto m_sketch = m_sketches[mmer];
                     for(int i = 0; i < embed_dim; ++i) {
-                       discretized_sketch |= (std::signbit(m_sketch[i]) << (bitset_pos * 4 + i));
+                        // std::cout << (bitset_pos + i) << std::endl;
+                        discretized_sketch |= (std::signbit(m_sketch[i]) << (bitset_pos + i));
                     }
-                    bitset_pos++;
+                    bitset_pos+=embed_dim;
                 }
 
                 // Here, go back from v[kmer] k-1 steps

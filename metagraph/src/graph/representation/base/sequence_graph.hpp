@@ -21,6 +21,7 @@
 #include "sketch/tensor_embedding.hpp"
 #include "sketch/tensor_slide.hpp"
 #include <boost/functional/hash.hpp>
+#include <boost/multiprecision/cpp_int.hpp>
 
 namespace utils {
     std::string make_suffix(const std::string &str, const std::string &suffix);
@@ -167,7 +168,7 @@ class DeBruijnGraph : public SequenceGraph {
                                   size_t tuple_length,
                                   size_t stride,
                                   uint32_t n_times_sketch);
-    std::vector<std::unordered_map<int64_t, std::vector<node_index>>> sketch_maps;
+    std::vector<std::unordered_map<boost::multiprecision::uint256_t, std::vector<node_index>>> sketch_maps;
     std::unordered_map<node_index, node_index> map_backward;
     virtual ~DeBruijnGraph() {}
 

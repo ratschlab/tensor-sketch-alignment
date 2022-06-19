@@ -15,6 +15,7 @@
 #include "sketch/tensor_block.hpp"
 #include "sketch/tensor_embedding.hpp"
 #include "sketch/tensor_slide.hpp"
+#include <boost/multiprecision/cpp_int.hpp>
 
 namespace mtg {
 namespace graph {
