@@ -575,81 +575,81 @@ int align_to_graph(Config *config) {
                 );
 
                 // Merge into the big map
-                std::lock_guard<std::mutex> lock1(stats_mutex);
-                {
-                    forward_query_seeds.merge(aligner->forward_query_seeds);
-                    rc_query_seeds.merge(aligner->rc_query_seeds);
-                    explored_nodes_per_kmer_per_query.merge(aligner->explored_nodes_per_kmer_per_query);
-                }
+//                std::lock_guard<std::mutex> lock1(stats_mutex);
+//                {
+//                    forward_query_seeds.merge(aligner->forward_query_seeds);
+//                    rc_query_seeds.merge(aligner->rc_query_seeds);
+//                    explored_nodes_per_kmer_per_query.merge(aligner->explored_nodes_per_kmer_per_query);
+//                }
             });
         };
 
         thread_pool.join();
 
         float avg_time = data_reading_timer.elapsed() / config->num_query_seqs;
-
-        // Compute the recall now
-        int recalled_paths = 0;
-        double precision = 0.0;
-        int n_precision_gt_zero = 0;
-        for(int seq_i = 0; seq_i < config->num_query_seqs; ++seq_i) {
-            std::string header = "Q" + std::to_string(seq_i);
-
-            // Get query sequence and path
-            std::string query_seq = spellings[seq_i];
-            std::vector<uint64_t> path = paths[seq_i];
-
-            // Get matched seeds (fwd and bwd)
-            auto fwd_seeds = forward_query_seeds[header];
-            auto rc_seeds = rc_query_seeds[header]; //unused
-            precision += explored_nodes_per_kmer_per_query[header];
-            if(explored_nodes_per_kmer_per_query[header] > 0.0)
-                n_precision_gt_zero++;
-            int recalled = 0;
-            // Check if the forward sequence recalled
-            for(auto seed : fwd_seeds) {
-                auto seed_nodes = seed.get_nodes();
-
-                int match_start = seed.get_clipping();
-                int num_matched = seed_nodes.size();
-
-                for(int i = 0; i < num_matched; ++i) {
-                    std::string kmer = query_seq.substr(match_start + i, graph->get_k());
-                    uint64_t node = path[match_start + i];
-                    if (config->seeder == "sketch") {
-                        if (std::count(seed_nodes.begin(), seed_nodes.end(), graph->map_backward[node])) {
-                            recalled++;
-                            break;
-                        }
-                    }
-                    else {
-                        // Default seeder
-                        if (std::count(seed_nodes.begin(), seed_nodes.end(), node)) {
-                            recalled++;
-                            break;
-                        }
-                    }
-                }
-
-                if (recalled > 0) {
-                    break;
-                }
-            }
-            recalled_paths += (recalled > 0);
-        }
-
-        if (n_precision_gt_zero > 0.0)
-          std::cout << "{"
-                    << "\"recall\":" << (float)recalled_paths / (float)config->num_query_seqs << ","
-                    << "\"precision\":" << precision/ (double)n_precision_gt_zero << ","
-                    << "\"avg_time\":" << avg_time
-                    << "}";
-        else
-          std::cout << "{"
-                    << "\"recall\":" << (float)recalled_paths / (float)config->num_query_seqs << ","
-                    << "\"precision\":" << 0 << ","
-                    << "\"avg_time\":" << avg_time
-                    << "}";
+//
+//        // Compute the recall now
+//        int recalled_paths = 0;
+//        double precision = 0.0;
+//        int n_precision_gt_zero = 0;
+//        for(int seq_i = 0; seq_i < config->num_query_seqs; ++seq_i) {
+//            std::string header = "Q" + std::to_string(seq_i);
+//
+//            // Get query sequence and path
+//            std::string query_seq = spellings[seq_i];
+//            std::vector<uint64_t> path = paths[seq_i];
+//
+//            // Get matched seeds (fwd and bwd)
+//            auto fwd_seeds = forward_query_seeds[header];
+//            auto rc_seeds = rc_query_seeds[header]; //unused
+//            precision += explored_nodes_per_kmer_per_query[header];
+//            if(explored_nodes_per_kmer_per_query[header] > 0.0)
+//                n_precision_gt_zero++;
+//            int recalled = 0;
+//            // Check if the forward sequence recalled
+//            for(auto seed : fwd_seeds) {
+//                auto seed_nodes = seed.get_nodes();
+//
+//                int match_start = seed.get_clipping();
+//                int num_matched = seed_nodes.size();
+//
+//                for(int i = 0; i < num_matched; ++i) {
+//                    std::string kmer = query_seq.substr(match_start + i, graph->get_k());
+//                    uint64_t node = path[match_start + i];
+//                    if (config->seeder == "sketch") {
+//                        if (std::count(seed_nodes.begin(), seed_nodes.end(), graph->map_backward[node])) {
+//                            recalled++;
+//                            break;
+//                        }
+//                    }
+//                    else {
+//                        // Default seeder
+//                        if (std::count(seed_nodes.begin(), seed_nodes.end(), node)) {
+//                            recalled++;
+//                            break;
+//                        }
+//                    }
+//                }
+//
+//                if (recalled > 0) {
+//                    break;
+//                }
+//            }
+//            recalled_paths += (recalled > 0);
+//        }
+//
+//        if (n_precision_gt_zero > 0.0)
+//          std::cout << "{"
+//                    << "\"recall\":" << (float)recalled_paths / (float)config->num_query_seqs << ","
+//                    << "\"precision\":" << precision/ (double)n_precision_gt_zero << ","
+//                    << "\"avg_time\":" << avg_time
+//                    << "}";
+//        else
+//          std::cout << "{"
+//                    << "\"recall\":" << (float)recalled_paths / (float)config->num_query_seqs << ","
+//                    << "\"precision\":" << 0 << ","
+//                    << "\"avg_time\":" << avg_time
+//                    << "}";
         logger->trace("File {} processed in {} sec, "
                       "num batches: {}, batch size: {} KB, "
                       "current mem usage: {} MB, total time {} sec",

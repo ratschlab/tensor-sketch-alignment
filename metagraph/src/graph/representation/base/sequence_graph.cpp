@@ -502,7 +502,7 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
 
                 // Here, go back from v[kmer] k-1 steps
                 sketch_maps[n_repeat][discretized_sketch].emplace_back(v[kmer - (get_k() - 1)]); // map back
-                map_backward[v[kmer]] = v[kmer - (get_k() - 1)];
+                // map_backward[v[kmer]] = v[kmer - (get_k() - 1)];
             }
         }
     });
