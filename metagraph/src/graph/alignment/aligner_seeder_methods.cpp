@@ -100,8 +100,8 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
     int ratio = 5;
     int m_stride = config_.stride;
     int m = (m_stride * k) / ratio;
-    std::vector<std::vector<double>> m_sketches(query_.size() - k + 1);
-    for (int n_repeat = 0; n_repeat < config_.n_times_sketch; n_repeat++) {
+    std::vector<std::vector<uint8_t>> m_sketches(query_.size() - k + 1);
+    for (uint32_t n_repeat = 0; n_repeat < config_.n_times_sketch; n_repeat++) {
         ts::TensorSlide<uint8_t> tensor = ts::TensorSlide<uint8_t>(config_.kmer_word_size,
                                                                    config_.embed_dim,
                                                                    config_.tuple_length,
@@ -109,23 +109,21 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                                                                    1,
                                                                    n_repeat);
         m_sketches.clear();
-        m_sketches = tensor.compute(query_to_int);
+        m_sketches = tensor.compute_discretized(query_to_int);
         end_clipping = query_.size() - k;
-        for (int kmer = 0; kmer < query_.size() - k + 1; ++kmer, --end_clipping) {
+        for (unsigned long kmer = 0; kmer < query_.size() - k + 1; ++kmer, --end_clipping) {
             // For each kmer, we concat (ratio - 1) mmers
             // So for kmer i, we concat mmers i:i + (ratio - 1)
             boost::multiprecision::uint256_t discretized_sketch = 0;
-            int bitset_pos = 0;
             // 8 8 8 8 bits (0 4 8 12)
             // 0 64 128 256 (64 64 64 64)
-            for(int mmer = kmer; mmer < kmer + (ratio - 1) * m_stride; mmer += m_stride) {
+            for(unsigned long mmer = kmer; mmer < kmer + (ratio - 1) * m_stride; mmer += m_stride) {
                 // set bits
                 auto m_sketch = m_sketches[mmer];
-                for(int i = 0; i < config_.embed_dim; ++i) {
+                for(unsigned long i = 0; i < config_.embed_dim; ++i) {
                     discretized_sketch <<= 1;
-                    discretized_sketch |= std::signbit(m_sketch[i]);
+                    discretized_sketch |= m_sketch[i];
                 }
-                bitset_pos+=config_.embed_dim;
             }
 
             // for one repeat we have one kmer with its discretized sketch
@@ -159,7 +157,7 @@ auto SketchSeeder::get_alignments() const -> std::vector<Alignment> {
     const DBGSuccinct &dbg_succ = get_base_dbg_succ(&this->graph_);
     auto k = graph_.get_k();
     const auto &boss = dbg_succ.get_boss();
-    for(int i = 0; i < seeds.size(); ++i) {
+    for(unsigned long i = 0; i < seeds.size(); ++i) {
         Seed seed = seeds[i];
         // Query sequence match
         std::string_view kmer_match = seed.get_query_view().substr(0, k);

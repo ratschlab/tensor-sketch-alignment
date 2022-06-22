@@ -115,6 +115,76 @@ class TensorSlide : public Tensor<seq_type> {
         return sketches;
     }
 
+    /**
+     * Computes sliding sketches for the given sequence.
+     * A sketch is computed every #stride characters on substrings of length #window.
+     * @return seq.size()/stride sketches of size #sketch_dim
+     */
+    Vec2D<uint8_t> compute_discretized(const std::vector<seq_type> &seq) {
+        Timer timer("tensor_slide_sketch");
+        Vec2D<uint8_t> sketches;
+        if (seq.size() < this->subsequence_len) {
+            return new2D<uint8_t>(seq.size() / this->stride, this->sketch_dim, uint8_t(0));
+        }
+        auto &hashes = this->hashes;
+        auto &signs = this->signs;
+        auto tup_len = this->subsequence_len;
+        // first index: p; second index: q; third index: r
+        // p,q go from 1 to tup_len; p==0 and p==tup_len+1 are sentinels for termination condition
+        auto T1 = new3D<double>(tup_len + 2, tup_len + 1, this->sketch_dim, 0);
+        auto T2 = new3D<double>(tup_len + 2, tup_len + 1, this->sketch_dim, 0);
+
+        for (uint32_t p = 0; p <= tup_len; p++) {
+            T1[p + 1][p][0] = 1;
+        }
+
+        // T[p][q] at step i represents the sketch for seq[i-w+1]...seq[i] when only using hash
+        // functions 1<=p,p+1,...q<=t, where t is the sketch size
+        for (uint32_t i = 0; i < seq.size(); i++) {
+            for (uint32_t p = 1; p <= tup_len; p++) {
+                // q-p must be smaller than i, hence the min in the condition
+                for (uint32_t q = std::min(p + i, (uint32_t)tup_len); q >= p; q--) {
+//                    double z = (double)(q - p + 1) / std::min(i + 1, win_len + 1);
+                    double z = 1.0; // numerical instability
+                    auto r = hashes[q - 1][seq[i]];
+                    bool s = signs[q - 1][seq[i]];
+                    if (s) {
+                        this->shift_sum_inplace(T1[p][q], T1[p][q - 1], r, z);
+                        this->shift_sum_inplace(T2[p][q], T2[p][q - 1], r, z);
+                    } else {
+                        this->shift_sum_inplace(T1[p][q], T2[p][q - 1], r, z);
+                        this->shift_sum_inplace(T2[p][q], T1[p][q - 1], r, z);
+                    }
+                }
+            }
+
+            if (i >= win_len) { // only start deleting from front after reaching #win_len
+                uint32_t ws = i - win_len; // the element to be removed from the sketch
+                for (uint32_t diff = 0; diff < tup_len; ++diff) {
+                    for (uint32_t p = 1; p <= tup_len - diff; p++) {
+                        auto r = hashes[p - 1][seq[ws]];
+                        bool s = signs[p - 1][seq[ws]];
+                        uint32_t q = p + diff;
+                        // this computes t/(w-t); in our case t (the tuple length) is diff+1
+//                        double z = (double)(diff + 1) / (win_len - diff);
+                        double z = 1.0; // numerical instability
+                        if (s) {
+                            this->shift_sum_inplace(T1[p][q], T1[p + 1][q], r, -z);
+                            this->shift_sum_inplace(T2[p][q], T2[p + 1][q], r, -z);
+                        } else {
+                            this->shift_sum_inplace(T1[p][q], T2[p + 1][q], r, -z);
+                            this->shift_sum_inplace(T2[p][q], T1[p + 1][q], r, -z);
+                        }
+                    }
+                }
+            }
+
+            if (i >= win_len - 1 && (i + 1) % stride == 0) { // save a sketch every stride times
+                sketches.push_back(diff_discrete(T1[1].back(), T2[1].back()));
+            }
+        }
+        return sketches;
+    }
     double dist(const Vec2D<double> &a, const Vec2D<double> &b) {
         Timer timer("tensor_slide_sketch_dist");
         return l2_dist2D_minlen(a, b);
@@ -130,7 +200,14 @@ class TensorSlide : public Tensor<seq_type> {
         }
         return result;
     }
-
+    std::vector<uint8_t> diff_discrete(const std::vector<double> &a, const std::vector<double> &b) {
+        assert(a.size() == b.size());
+        std::vector<uint8_t> result(a.size());
+        for (uint32_t i = 0; i < result.size(); ++i) {
+            result[i] = (uint8_t)((a[i] - b[i]) < 0);
+        }
+        return result;
+    }
     uint32_t win_len;
     uint32_t stride;
 };

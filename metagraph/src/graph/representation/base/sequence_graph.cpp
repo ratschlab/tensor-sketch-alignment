@@ -471,13 +471,13 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
 
 
         // Compute sketches
-        int n_nodes = v.size();
+        uint32_t n_nodes = v.size();
         // Compute sketches for mmers instead of kmers then concat
         int ratio = 5;
         int m = (m_stride * get_k()) / ratio;
 
 //        #pragma omp parallel for num_threads(get_num_threads())
-        for (int n_repeat = 0; n_repeat < n_times_sketch; n_repeat++) {
+        for (uint32_t n_repeat = 0; n_repeat < n_times_sketch; n_repeat++) {
             ts::TensorSlide<uint8_t> tensor = ts::TensorSlide<uint8_t>(kmer_word_size,
                                                                        embed_dim,
                                                                        tuple_length,
@@ -485,22 +485,20 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                                                                        1,
                                                                        n_repeat);
 
-            std::vector<std::vector<double>> m_sketches = tensor.compute(node_sequence_to_int);
+            std::vector<std::vector<uint8_t>> m_sketches = tensor.compute_discretized(node_sequence_to_int);
             // Each m_sketch is up to 8 bits(embed_dim size), need to discretize
 
-            for (int kmer = get_k() - 1; kmer < n_nodes; ++kmer) {
+            for (uint32_t kmer = get_k() - 1; kmer < n_nodes; ++kmer) {
                 // For each kmer, we concat (ratio - 1) mmers
                 // So for kmer i, we concat mmers i:i + (ratio - 1)
                 boost::multiprecision::uint256_t discretized_sketch = 0;
-                int bitset_pos = 0;
-                for(int mmer = kmer; mmer < kmer + (ratio - 1) * m_stride; mmer += m_stride) {
+                for(unsigned long mmer = kmer; mmer < kmer + (ratio - 1) * m_stride; mmer += m_stride) {
                     // set bits
                     auto m_sketch = m_sketches[mmer];
-                    for(int i = 0; i < embed_dim; ++i) {
+                    for(unsigned long i = 0; i < embed_dim; ++i) {
                         discretized_sketch <<= 1;
-                        discretized_sketch |= std::signbit(m_sketch[i]);
+                        discretized_sketch |= m_sketch[i];
                     }
-                    bitset_pos+=embed_dim;
                 }
 
                 // Here, go back from v[kmer] k-1 steps
