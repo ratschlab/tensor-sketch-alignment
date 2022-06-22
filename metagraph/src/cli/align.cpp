@@ -361,11 +361,11 @@ void generate_sequences(const DeBruijnGraph &graph,
             paths.push_back(nodes);
 
             // debug
-            std::cout << spelling << " --- " << mutated_string << std::endl;
-            for(int x = 0; x < nodes.size(); ++x) {
-                std::cout << spelling.substr(x,graph.get_k()) << "--" << mutated_string.substr(x,graph.get_k()) << " " << nodes[x] << "\n";
-            }
-            std::cout << std::endl;
+//            std::cout << spelling << " --- " << mutated_string << std::endl;
+//            for(int x = 0; x < nodes.size(); ++x) {
+//                std::cout << spelling.substr(x,graph.get_k()) << "--" << mutated_string.substr(x,graph.get_k()) << " " << nodes[x] << "\n";
+//            }
+//            std::cout << std::endl;
         }
 
     }

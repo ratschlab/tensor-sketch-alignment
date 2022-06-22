@@ -120,11 +120,11 @@ class TensorSlide : public Tensor<seq_type> {
      * A sketch is computed every #stride characters on substrings of length #window.
      * @return seq.size()/stride sketches of size #sketch_dim
      */
-    Vec2D<uint8_t> compute_discretized(const std::vector<seq_type> &seq) {
+    std::vector<uint64_t> compute_discretized(const std::vector<seq_type> &seq) {
         Timer timer("tensor_slide_sketch");
-        Vec2D<uint8_t> sketches;
+        std::vector<uint64_t> sketches;
         if (seq.size() < this->subsequence_len) {
-            return new2D<uint8_t>(seq.size() / this->stride, this->sketch_dim, uint8_t(0));
+            return std::vector<uint64_t>(seq.size() / this->stride * this->sketch_dim, uint8_t(0));
         }
         auto &hashes = this->hashes;
         auto &signs = this->signs;
@@ -200,11 +200,12 @@ class TensorSlide : public Tensor<seq_type> {
         }
         return result;
     }
-    std::vector<uint8_t> diff_discrete(const std::vector<double> &a, const std::vector<double> &b) {
+    uint64_t diff_discrete(const std::vector<double> &a, const std::vector<double> &b) {
         assert(a.size() == b.size());
-        std::vector<uint8_t> result(a.size());
-        for (uint32_t i = 0; i < result.size(); ++i) {
-            result[i] = (uint8_t)((a[i] - b[i]) < 0);
+        uint64_t result = 0;
+        for (uint32_t i = 0; i < 64; ++i) {
+            result <<= 1;
+            result |= (uint8_t)((a[i] - b[i]) < 0);
         }
         return result;
     }

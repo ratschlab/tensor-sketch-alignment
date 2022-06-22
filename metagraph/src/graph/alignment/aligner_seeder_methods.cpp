@@ -100,7 +100,7 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
     int ratio = 5;
     int m_stride = config_.stride;
     int m = (m_stride * k) / ratio;
-    std::vector<std::vector<uint8_t>> m_sketches(query_.size() - k + 1);
+    std::vector<uint64_t> m_sketches(query_.size() - k + 1);
     for (uint32_t n_repeat = 0; n_repeat < config_.n_times_sketch; n_repeat++) {
         ts::TensorSlide<uint8_t> tensor = ts::TensorSlide<uint8_t>(config_.kmer_word_size,
                                                                    config_.embed_dim,
@@ -122,7 +122,7 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                 auto m_sketch = m_sketches[mmer];
                 for(unsigned long i = 0; i < config_.embed_dim; ++i) {
                     discretized_sketch <<= 1;
-                    discretized_sketch |= m_sketch[i];
+                    discretized_sketch |= ((m_sketch >> i) & 1);
                 }
             }
 
