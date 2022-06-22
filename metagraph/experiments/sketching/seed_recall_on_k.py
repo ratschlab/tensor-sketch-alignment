@@ -101,7 +101,7 @@ if __name__ == '__main__':
         col=1
     )
     fig.add_trace(
-        go.Scatter(x=x, y=precision, text=K_VALS, textposition="top center", mode="lines+markers+text", name=f"Precision"),
+        go.Scatter(x=x, y=precision, text=K_VALS, textposition="top center", mode="lines+markers+text", name=f"Average #kmers/node"),
         row=2,
         col=1
     )
@@ -109,7 +109,7 @@ if __name__ == '__main__':
     fig.update_xaxes(title_text="Average Time (s)", row=1, col=1)
     fig.update_xaxes(title_text="Average Time (s)", row=2, col=1)
     fig.update_yaxes(title_text="Recall", row=1, col=1)
-    fig.update_yaxes(title_text="Precision", row=3, col=1)
+    fig.update_yaxes(title_text="Average #kmers/node", row=3, col=1)
 
     experiment_dir = os.path.join("runs", strftime("%Y-%m-%dT%H:%M:%S", localtime()))
     os.mkdir(experiment_dir)

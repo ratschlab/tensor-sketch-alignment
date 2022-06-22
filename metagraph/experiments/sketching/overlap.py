@@ -29,5 +29,5 @@ if __name__ == '__main__':
     fig.add_trace(go.Scatter(x=sketch_data['avg_time'], y=sketch_data['precision'], text=K_VALS, textposition="top center", mode="lines+markers+text", name="Sketch"))
     fig.add_trace(go.Scatter(x=exact_data['avg_time'], y=exact_data['precision'], text=K_VALS, textposition="top center", mode="lines+markers+text", name="Default"))
     fig.update_xaxes(title_text="Average Time (s)", type="log")
-    fig.update_yaxes(title_text="Precision")
+    fig.update_yaxes(title_text="Average #kmers/node")
     fig.write_image("precision.png", scale=1, width=1920, height=1080)

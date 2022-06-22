@@ -37,14 +37,14 @@ if __name__ == '__main__':
     graph_seq = ''.join(np.random.choice(ALPHABET, GRAPH_SEQ_LEN))
     header = f'>Base sequence'
     out_graph_seq = '\n'.join([header, graph_seq])
-    print("[LOG] Generated graph sequence:")
-    print(out_graph_seq)
+    # print("[LOG] Generated graph sequence:")
+    # print(out_graph_seq)
     graph_seq_path = os.path.join(DATASET_DIR, INPUT_SEQ)
     with open(graph_seq_path, 'w') as f:
         f.write(out_graph_seq)
 
     # Generate graph
     for K in range(10, MAX_K, 10):
-        build_command = f"{METAGRAPH_PATH} build --mode canonical -k {K} -o {os.path.join(DATASET_DIR, INPUT_SEQ.split('.')[0] + f'_{K}')} {graph_seq_path}"
+        build_command = f"{METAGRAPH_PATH} build -k {K} -o {os.path.join(DATASET_DIR, INPUT_SEQ.split('.')[0] + f'_{K}')} {graph_seq_path}"
         subprocess.run(build_command.split())
         print(f"[LOG] Saved .dbg file from generated sequence - {K}")
