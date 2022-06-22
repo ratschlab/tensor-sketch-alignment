@@ -464,12 +464,10 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
     sketch_maps = std::vector<std::unordered_map<boost::multiprecision::uint256_t, std::vector<node_index>>>(n_times_sketch);
     map_backward = std::unordered_map<node_index, node_index>();
     call_sequences([&](const std::string& s, const std::vector<node_index>& v) {
-        std::vector<uint8_t> node_sequence_to_int;
-        for (unsigned char c: s) {
-            node_sequence_to_int.push_back(ts::char2int(c));
+        std::vector<uint8_t> node_sequence_to_int(s.size());
+        for (uint32_t i = 0; i < s.size(); ++i) {
+            node_sequence_to_int[i] = ts::char2int(s[i]);
         }
-
-
         // Compute sketches
         uint32_t n_nodes = v.size();
         // Compute sketches for mmers instead of kmers then concat
@@ -484,7 +482,7 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                                                                        m,
                                                                        1,
                                                                        n_repeat);
-
+            sketch_maps[n_repeat].reserve(max_index());
             std::vector<uint64_t> m_sketches = tensor.compute_discretized(node_sequence_to_int);
 
             for (uint32_t kmer = get_k() - 1; kmer < n_nodes; ++kmer) {
@@ -494,6 +492,7 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                 for(unsigned long mmer = kmer; mmer < kmer + (ratio - 1) * m_stride; mmer += m_stride) {
                     // set bits
                     auto m_sketch = m_sketches[mmer];
+                    #pragma omp simd
                     for(unsigned long i = 0; i < embed_dim; ++i) {
                         discretized_sketch <<= 1;
                         discretized_sketch |= ((m_sketch >> i) & 1);
