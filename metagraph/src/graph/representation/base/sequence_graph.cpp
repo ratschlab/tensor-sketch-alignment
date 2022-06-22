@@ -475,8 +475,8 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
         // Compute sketches for mmers instead of kmers then concat
         int ratio = 5;
         int m = (m_stride * get_k()) / ratio;
+        boost::multiprecision::uint256_t discretized_sketch = 0;
 
-//        #pragma omp parallel for num_threads(get_num_threads())
         for (uint32_t n_repeat = 0; n_repeat < n_times_sketch; n_repeat++) {
             ts::TensorSlide<uint8_t> tensor = ts::TensorSlide<uint8_t>(kmer_word_size,
                                                                        embed_dim,
@@ -490,7 +490,7 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
             for (uint32_t kmer = get_k() - 1; kmer < n_nodes; ++kmer) {
                 // For each kmer, we concat (ratio - 1) mmers
                 // So for kmer i, we concat mmers i:i + (ratio - 1)
-                boost::multiprecision::uint256_t discretized_sketch = 0;
+                discretized_sketch = 0;
                 for(unsigned long mmer = kmer; mmer < kmer + (ratio - 1) * m_stride; mmer += m_stride) {
                     // set bits
                     auto m_sketch = m_sketches[mmer];

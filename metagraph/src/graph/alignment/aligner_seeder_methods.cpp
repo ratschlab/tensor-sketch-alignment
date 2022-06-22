@@ -96,7 +96,8 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
     seeds.reserve(query_.size() - k);
     if (config_.max_seed_length < k)
         return seeds;
-    
+
+    boost::multiprecision::uint256_t discretized_sketch = 0;
     int ratio = 5;
     int m_stride = config_.stride;
     int m = (m_stride * k) / ratio;
@@ -114,9 +115,9 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
         for (unsigned long kmer = 0; kmer < query_.size() - k + 1; ++kmer, --end_clipping) {
             // For each kmer, we concat (ratio - 1) mmers
             // So for kmer i, we concat mmers i:i + (ratio - 1)
-            boost::multiprecision::uint256_t discretized_sketch = 0;
             // 8 8 8 8 bits (0 4 8 12)
             // 0 64 128 256 (64 64 64 64)
+            discretized_sketch = 0;
             for(unsigned long mmer = kmer; mmer < kmer + (ratio - 1) * m_stride; mmer += m_stride) {
                 // set bits
                 auto m_sketch = m_sketches[mmer];

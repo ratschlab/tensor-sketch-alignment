@@ -203,7 +203,7 @@ class TensorSlide : public Tensor<seq_type> {
     uint64_t diff_discrete(const std::vector<double> &a, const std::vector<double> &b) {
         assert(a.size() == b.size());
         uint64_t result = 0;
-        for (uint32_t i = 0; i < 64; ++i) {
+        for (uint32_t i = 0; i < a.size(); ++i) {
             result <<= 1;
             result |= (uint8_t)((a[i] - b[i]) < 0);
         }

@@ -19,6 +19,7 @@
 #include "load/load_graph.hpp"
 #include "load/load_annotated_graph.hpp"
 #include "graph/representation/base/sequence_graph.hpp"
+#include <filesystem>
 
 namespace mtg {
 namespace cli {
@@ -389,10 +390,9 @@ int align_to_graph(Config *config) {
 
     std::vector<std::string> spellings;
     std::vector<std::vector<uint64_t>> paths;
-
     std::ofstream out(config->output_path);
     if (config->experiment) {
-        if(config->min_path_size > graph->max_index()) {
+        if (config->min_path_size > graph->max_index()) {
             logger->error("min_path_size = {} is larger than graph->max_index() = {}",
                           config->min_path_size,
                           graph->max_index());
@@ -413,7 +413,6 @@ int align_to_graph(Config *config) {
         }
         out.close();
     }
-
 
     const auto &files = config->fnames;
 
