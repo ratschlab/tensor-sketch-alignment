@@ -122,7 +122,7 @@ class TensorSlide : public Tensor<seq_type> {
      */
     std::vector<uint64_t> compute_discretized(const std::vector<seq_type> &seq) {
         Timer timer("tensor_slide_sketch");
-        std::vector<uint64_t> sketches;
+        std::vector<uint64_t> sketches((seq.size() - this->win_len) / this->stride + 1);
         if (seq.size() < this->subsequence_len) {
             return std::vector<uint64_t>(seq.size() / this->stride * this->sketch_dim, uint8_t(0));
         }
@@ -140,6 +140,7 @@ class TensorSlide : public Tensor<seq_type> {
 
         // T[p][q] at step i represents the sketch for seq[i-w+1]...seq[i] when only using hash
         // functions 1<=p,p+1,...q<=t, where t is the sketch size
+        uint32_t save_index = 0;
         for (uint32_t i = 0; i < seq.size(); i++) {
             for (uint32_t p = 1; p <= tup_len; p++) {
                 // q-p must be smaller than i, hence the min in the condition
@@ -179,8 +180,8 @@ class TensorSlide : public Tensor<seq_type> {
                 }
             }
 
-            if (i >= win_len - 1 && (i + 1) % stride == 0) { // save a sketch every stride times
-                sketches.push_back(diff_discrete(T1[1].back(), T2[1].back()));
+            if (i >= (win_len - 1) && (i + 1) % stride == 0) { // save a sketch every stride times
+                sketches[save_index++] = diff_discrete(T1[1].back(), T2[1].back());
             }
         }
         return sketches;
@@ -203,7 +204,6 @@ class TensorSlide : public Tensor<seq_type> {
     uint64_t diff_discrete(const std::vector<double> &a, const std::vector<double> &b) {
         assert(a.size() == b.size());
         uint64_t result = 0;
-        #pragma omp simd
         for (uint32_t i = 0; i < a.size(); ++i) {
             result <<= 1;
             result |= (uint8_t)((a[i] - b[i]) < 0);

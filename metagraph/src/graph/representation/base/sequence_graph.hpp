@@ -168,6 +168,11 @@ class DeBruijnGraph : public SequenceGraph {
                                   size_t tuple_length,
                                   size_t stride,
                                   uint32_t n_times_sketch);
+//    virtual void compute_minimizer_sketches(uint64_t kmer_word_size,
+//                                  size_t embed_dim,
+//                                  size_t tuple_length,
+//                                  size_t stride,
+//                                  uint32_t n_times_sketch);
     std::vector<std::unordered_map<boost::multiprecision::uint256_t, std::vector<node_index>>> sketch_maps;
     std::unordered_map<node_index, node_index> map_backward;
     virtual ~DeBruijnGraph() {}
