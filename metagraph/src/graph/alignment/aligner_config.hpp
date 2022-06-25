@@ -111,6 +111,7 @@ struct DBGAlignerConfig {
     size_t tuple_length = 3;
     size_t stride = 2;
     uint32_t n_times_sketch = 10;
+    uint32_t minimizer_window = 20;
 };
 
 } // namespace align

@@ -163,18 +163,17 @@ class DeBruijnGraph : public SequenceGraph {
   public:
     enum Mode { BASIC = 0, CANONICAL, PRIMARY };
 
+    using key_type = boost::multiprecision::uint256_t;
     virtual void compute_sketches(uint64_t kmer_word_size,
                                   size_t embed_dim,
                                   size_t tuple_length,
                                   size_t stride,
-                                  uint32_t n_times_sketch);
-//    virtual void compute_minimizer_sketches(uint64_t kmer_word_size,
-//                                  size_t embed_dim,
-//                                  size_t tuple_length,
-//                                  size_t stride,
-//                                  uint32_t n_times_sketch);
-    std::vector<std::unordered_map<boost::multiprecision::uint256_t, std::vector<node_index>>> sketch_maps;
+                                  uint32_t n_times_sketch,
+                                  uint32_t minimizer_window);
+    std::vector<std::unordered_map<key_type, std::vector<node_index>>> sketch_maps;
+    std::vector<std::vector<uint8_t>> random_directions;
     std::unordered_map<node_index, node_index> map_backward;
+
     virtual ~DeBruijnGraph() {}
 
     virtual size_t get_k() const = 0;

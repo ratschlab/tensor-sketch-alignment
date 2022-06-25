@@ -11,8 +11,10 @@ namespace graph {
 namespace align {
 
 using mtg::common::logger;
+using namespace boost::multiprecision;
 
 typedef Alignment::score_t score_t;
+using key_type = boost::multiprecision::uint256_t;
 
 ExactSeeder::ExactSeeder(const DeBruijnGraph &graph,
                          std::string_view query,
@@ -83,6 +85,7 @@ auto ExactSeeder::get_seeds() const -> std::vector<Seed> {
 
 auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
     size_t k = graph_.get_k();
+
     assert(k >= config_.min_seed_length);
 
     size_t end_clipping = query_.size() - k;
@@ -97,43 +100,58 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
     if (config_.max_seed_length < k)
         return seeds;
 
-    boost::multiprecision::uint256_t discretized_sketch = 0;
+    key_type discretized_sketch = 0;
     int ratio = 5;
     int m_stride = config_.stride;
     int m = (m_stride * k) / ratio;
     std::vector<uint64_t> m_sketches(query_.size() - k + 1);
+    std::priority_queue <std::tuple<int64_t, key_type, unsigned long>> pq;
+
     for (uint32_t n_repeat = 0; n_repeat < config_.n_times_sketch; n_repeat++) {
+        auto random_direction = graph_.random_directions[n_repeat];
         ts::TensorSlide<uint8_t> tensor = ts::TensorSlide<uint8_t>(config_.kmer_word_size,
                                                                    config_.embed_dim,
                                                                    config_.tuple_length,
                                                                    m,
                                                                    1,
                                                                    n_repeat);
-        m_sketches.clear();
         m_sketches = tensor.compute_discretized(query_to_int);
         end_clipping = query_.size() - k;
         for (unsigned long kmer = 0; kmer < query_.size() - k + 1; ++kmer, --end_clipping) {
+            int64_t distance = 0;
             // For each kmer, we concat (ratio - 1) mmers
             // So for kmer i, we concat mmers i:i + (ratio - 1)
-            // 8 8 8 8 bits (0 4 8 12)
-            // 0 64 128 256 (64 64 64 64)
             discretized_sketch = 0;
+            uint32_t bit_index = 0;
             for(unsigned long mmer = kmer; mmer < kmer + (ratio - 1) * m_stride; mmer += m_stride) {
                 // set bits
                 auto m_sketch = m_sketches[mmer];
-                for(unsigned long i = 0; i < config_.embed_dim; ++i) {
-                    discretized_sketch <<= 1;
-                    discretized_sketch |= ((m_sketch >> i) & 1);
+                discretized_sketch <<= config_.embed_dim;
+                discretized_sketch |= m_sketch;
+
+                for(uint32_t bit = 0; bit < config_.embed_dim; ++bit, ++bit_index) {
+                    int8_t sketch_bit = ((m_sketch >> bit) & 1);
+                    int8_t random_bit = (random_direction[bit_index]);
+                    distance += (sketch_bit - random_bit) * (sketch_bit - random_bit);
                 }
             }
 
-            // for one repeat we have one kmer with its discretized sketch
 
-            if (graph_.sketch_maps[n_repeat].count(discretized_sketch)) {
-                for (auto match : graph_.sketch_maps[n_repeat].at(discretized_sketch))
-                    seeds.emplace_back(query_.substr(kmer, k),
+            // for one repeat we have one kmer with its discretized sketch
+            pq.push(std::make_tuple(distance, discretized_sketch, kmer));
+            if (pq.size() > config_.minimizer_window) {
+                pq.pop();
+            }
+        }
+        while (!pq.empty()) {
+            auto top = pq.top();
+            pq.pop();
+            if (graph_.sketch_maps[n_repeat].count(std::get<1>(top))) {
+                for (auto match : graph_.sketch_maps[n_repeat].at(std::get<1>(top)))
+                    seeds.emplace_back(query_.substr(std::get<2>(top), k),
                                    std::vector<node_index>({ match }),
-                                   orientation_, 0, kmer, end_clipping);
+                                   orientation_, 0, std::get<2>(top), end_clipping);
+
             }
         }
     }

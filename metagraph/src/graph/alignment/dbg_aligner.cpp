@@ -248,7 +248,7 @@ void DBGAligner<Seeder, Extender, AlignmentCompare>
         auto &[seeder, seeder_rc] = seeders[i];
 
         // Saving stats for recall
-//       forward_query_seeds.insert({header, (*seeder).get_seeds()});
+        forward_query_seeds.insert({header, (*seeder).get_seeds()});
         // rc_query_seeds.insert({header, (*seeder_rc).get_seeds()});
 
         AlignmentAggregator<AlignmentCompare> aggregator(config_);

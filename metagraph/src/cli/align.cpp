@@ -20,13 +20,13 @@
 #include "load/load_annotated_graph.hpp"
 #include "graph/representation/base/sequence_graph.hpp"
 #include <filesystem>
-
+#include <boost/multiprecision/cpp_int.hpp>
 namespace mtg {
 namespace cli {
 
 using namespace mtg::graph;
 using namespace mtg::graph::align;
-
+using namespace boost::multiprecision;
 using mtg::seq_io::kseq_t;
 using mtg::common::logger;
 
@@ -61,6 +61,7 @@ DBGAlignerConfig initialize_aligner_config(const Config &config) {
         .tuple_length = config.tuple_length,
         .stride = config.stride,
         .n_times_sketch = config.n_times_sketch,
+        .minimizer_window = config.minimizer_window
     };
 
     c.set_scoring_matrix();
@@ -295,7 +296,7 @@ using seq_type = uint8_t;
 
 string mutate(string s, int mutation_rate, std::vector<char> alphabet) {
     std::string mutated_string = s;
-    for(int i = 0; i < s.size(); ++i) {
+    for(uint32_t i = 0; i < s.size(); ++i) {
         if (rand() % 100 < mutation_rate) {
             // mutate
             char new_c = alphabet[rand() % alphabet.size()];
@@ -321,7 +322,6 @@ void generate_sequences(const DeBruijnGraph &graph,
     std::uniform_int_distribution<uint64_t> dis(1, graph.num_nodes());
 
     while (spellings.size() < num_paths) {
-        int curr_spellings_num = spellings.size();
         uint64_t root_node = dis(gen);
         std::string root_node_seq = graph.get_node_sequence(root_node);
         std::vector <uint64_t> nodes;
@@ -382,7 +382,7 @@ int align_to_graph(Config *config) {
     auto graph = load_critical_dbg(config->infbase);
     // graph->print(std::cout);
     
-    fprintf(stderr, "Number of nodes: %lu\n", graph->max_index());
+    fprintf(stderr, "Number of nodes: %llu\n", graph->max_index());
     // initialize alphabet
     ts::init_alphabet("dna4");
 
@@ -406,7 +406,7 @@ int align_to_graph(Config *config) {
                            {'A', 'T', 'G', 'C'},
                            spellings,
                            paths);
-        for (int i = 0; i < config->num_query_seqs; ++i) {
+        for (uint32_t i = 0; i < config->num_query_seqs; ++i) {
             std::string header = ">Q" + std::to_string(i);
             out << header << std::endl;
             out << spellings[i] << std::endl;
@@ -440,7 +440,6 @@ int align_to_graph(Config *config) {
     }
 
     Timer timer;
-    float alignment_time;
     ThreadPool thread_pool(get_num_threads());
     std::mutex print_mutex;
 
@@ -478,15 +477,15 @@ int align_to_graph(Config *config) {
     DBGAlignerConfig aligner_config = initialize_aligner_config(*config);
 
     // compute sketches
+
     if (config->seeder == "sketch") {
-        // Compute sketches for graph
         graph->compute_sketches(aligner_config.kmer_word_size,
                                 aligner_config.embed_dim,
                                 aligner_config.tuple_length,
                                 aligner_config.stride,
-                                aligner_config.n_times_sketch);
+                                aligner_config.n_times_sketch,
+                                aligner_config.minimizer_window);
     }
-
     std::unique_ptr<AnnotatedDBG> anno_dbg;
     if (config->infbase_annotators.size()) {
         assert(config->infbase_annotators.size() == 1);
@@ -574,81 +573,81 @@ int align_to_graph(Config *config) {
                 );
 
                 // Merge into the big map
-//                std::lock_guard<std::mutex> lock1(stats_mutex);
-//                {
-//                    forward_query_seeds.merge(aligner->forward_query_seeds);
-//                    rc_query_seeds.merge(aligner->rc_query_seeds);
-//                    explored_nodes_per_kmer_per_query.merge(aligner->explored_nodes_per_kmer_per_query);
-//                }
+                std::lock_guard<std::mutex> lock1(stats_mutex);
+                {
+                    forward_query_seeds.merge(aligner->forward_query_seeds);
+                    rc_query_seeds.merge(aligner->rc_query_seeds);
+                    explored_nodes_per_kmer_per_query.merge(aligner->explored_nodes_per_kmer_per_query);
+                }
             });
         };
 
         thread_pool.join();
 
         float avg_time = data_reading_timer.elapsed() / config->num_query_seqs;
-//
-//        // Compute the recall now
-//        int recalled_paths = 0;
-//        double precision = 0.0;
-//        int n_precision_gt_zero = 0;
-//        for(int seq_i = 0; seq_i < config->num_query_seqs; ++seq_i) {
-//            std::string header = "Q" + std::to_string(seq_i);
-//
-//            // Get query sequence and path
-//            std::string query_seq = spellings[seq_i];
-//            std::vector<uint64_t> path = paths[seq_i];
-//
-//            // Get matched seeds (fwd and bwd)
-//            auto fwd_seeds = forward_query_seeds[header];
-//            auto rc_seeds = rc_query_seeds[header]; //unused
-//            precision += explored_nodes_per_kmer_per_query[header];
-//            if(explored_nodes_per_kmer_per_query[header] > 0.0)
-//                n_precision_gt_zero++;
-//            int recalled = 0;
-//            // Check if the forward sequence recalled
-//            for(auto seed : fwd_seeds) {
-//                auto seed_nodes = seed.get_nodes();
-//
-//                int match_start = seed.get_clipping();
-//                int num_matched = seed_nodes.size();
-//
-//                for(int i = 0; i < num_matched; ++i) {
-//                    std::string kmer = query_seq.substr(match_start + i, graph->get_k());
-//                    uint64_t node = path[match_start + i];
-//                    if (config->seeder == "sketch") {
-//                        if (std::count(seed_nodes.begin(), seed_nodes.end(), graph->map_backward[node])) {
-//                            recalled++;
-//                            break;
-//                        }
-//                    }
-//                    else {
-//                        // Default seeder
-//                        if (std::count(seed_nodes.begin(), seed_nodes.end(), node)) {
-//                            recalled++;
-//                            break;
-//                        }
-//                    }
-//                }
-//
-//                if (recalled > 0) {
-//                    break;
-//                }
-//            }
-//            recalled_paths += (recalled > 0);
-//        }
-//
-//        if (n_precision_gt_zero > 0.0)
-//          std::cout << "{"
-//                    << "\"recall\":" << (float)recalled_paths / (float)config->num_query_seqs << ","
-//                    << "\"precision\":" << precision/ (double)n_precision_gt_zero << ","
-//                    << "\"avg_time\":" << avg_time
-//                    << "}";
-//        else
-//          std::cout << "{"
-//                    << "\"recall\":" << (float)recalled_paths / (float)config->num_query_seqs << ","
-//                    << "\"precision\":" << 0 << ","
-//                    << "\"avg_time\":" << avg_time
-//                    << "}";
+
+        // Compute the recall now
+        int recalled_paths = 0;
+        double precision = 0.0;
+        int n_precision_gt_zero = 0;
+        for(int seq_i = 0; seq_i < config->num_query_seqs; ++seq_i) {
+            std::string header = "Q" + std::to_string(seq_i);
+
+            // Get query sequence and path
+            std::string query_seq = spellings[seq_i];
+            std::vector<uint64_t> path = paths[seq_i];
+
+            // Get matched seeds (fwd and bwd)
+            auto fwd_seeds = forward_query_seeds[header];
+            auto rc_seeds = rc_query_seeds[header]; //unused
+            precision += explored_nodes_per_kmer_per_query[header];
+            if(explored_nodes_per_kmer_per_query[header] > 0.0)
+                n_precision_gt_zero++;
+            int recalled = 0;
+            // Check if the forward sequence recalled
+            for(auto seed : fwd_seeds) {
+                auto seed_nodes = seed.get_nodes();
+
+                int match_start = seed.get_clipping();
+                int num_matched = seed_nodes.size();
+
+                for(int i = 0; i < num_matched; ++i) {
+                    std::string kmer = query_seq.substr(match_start + i, graph->get_k());
+                    uint64_t node = path[match_start + i];
+                    if (config->seeder == "sketch") {
+                        if (std::count(seed_nodes.begin(), seed_nodes.end(), graph->map_backward[node])) {
+                            recalled++;
+                            break;
+                        }
+                    }
+                    else {
+                        // Default seeder
+                        if (std::count(seed_nodes.begin(), seed_nodes.end(), node)) {
+                            recalled++;
+                            break;
+                        }
+                    }
+                }
+
+                if (recalled > 0) {
+                    break;
+                }
+            }
+            recalled_paths += (recalled > 0);
+        }
+
+        if (n_precision_gt_zero > 0.0)
+          std::cout << "{"
+                    << "\"recall\":" << (float)recalled_paths / (float)config->num_query_seqs << ","
+                    << "\"precision\":" << precision/ (double)n_precision_gt_zero << ","
+                    << "\"avg_time\":" << avg_time
+                    << "}";
+        else
+          std::cout << "{"
+                    << "\"recall\":" << (float)recalled_paths / (float)config->num_query_seqs << ","
+                    << "\"precision\":" << 0 << ","
+                    << "\"avg_time\":" << avg_time
+                    << "}";
         logger->trace("File {} processed in {} sec, "
                       "num batches: {}, batch size: {} KB, "
                       "current mem usage: {} MB, total time {} sec",

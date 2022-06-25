@@ -36,6 +36,7 @@ class Config {
     uint32_t num_query_seqs = 100;
     uint32_t min_path_size = 5;
     uint32_t max_path_size = 10;
+    uint32_t minimizer_window = 25;
 
     bool print_graph = false;
     bool print_graph_internal_repr = false;

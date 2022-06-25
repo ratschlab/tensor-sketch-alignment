@@ -337,6 +337,8 @@ Config::Config(int argc, char *argv[]) {
             fprintf(stderr, "\nWARNING: Mutation rate: %d\n", mutation_rate);
             fprintf(stderr, "\nWARNING: Saving sequences to: %s\n\n", output_path.c_str());
             fnames.push_back(output_path);
+        } else if (!strcmp(argv[i], "--minimizer-window")) {
+            minimizer_window = std::stoi(get_value(i++));
         } else if (!strcmp(argv[i], "--mutation-rate")) {
             mutation_rate = std::stoi(get_value(i++));
         } else if (!strcmp(argv[i], "--n-times-sketch")) {
