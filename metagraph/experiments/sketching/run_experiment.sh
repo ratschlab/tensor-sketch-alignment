@@ -4,15 +4,15 @@ rm *.png # cleanup
 metagraph_path="/home/alex/metagraph/metagraph/build/metagraph"
 output_path="./data/generated.fa"
 max_k=90
-graph_seq_len=50000
+graph_seq_len=100000000
 
 num_query_seqs=1000
-mutation_rate=20
-min_path_size=99
-max_path_size=100
+mutation_rate=10
+min_path_size=200
+max_path_size=201
 
 parallel=$(getconf _NPROCESSORS_ONLN)
-batch_size=100000
+batch_size=1000
 ################
 
 # Generate the dataset
@@ -21,11 +21,12 @@ eval $gen_command
 
 # Sketch seeder params
 embed_dim=64
+minimizer_window=100
 n_times_sketch=1
 seeder="sketch"
 ######################
 
-sketch_command="python seed_recall_on_k.py --output-path $output_path --embed-dim $embed_dim --n-times-sketch $n_times_sketch --mutation_rate $mutation_rate --num_query_seqs $num_query_seqs --parallel $parallel --batch-size $batch_size --seeder $seeder --metagraph-path $metagraph_path --max-k $max_k --max-path-size $max_path_size --min-path-size $min_path_size"
+sketch_command="python seed_recall_on_k.py --minimizer-window $minimizer_window --output-path $output_path --embed-dim $embed_dim --n-times-sketch $n_times_sketch --mutation_rate $mutation_rate --num_query_seqs $num_query_seqs --parallel $parallel --batch-size $batch_size --seeder $seeder --metagraph-path $metagraph_path --max-k $max_k --max-path-size $max_path_size --min-path-size $min_path_size"
 
 echo "[INFO] Launching the experiment on SKETCH"
 eval $sketch_command
