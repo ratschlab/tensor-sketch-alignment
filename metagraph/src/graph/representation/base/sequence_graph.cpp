@@ -500,8 +500,10 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                 // So for kmer i, we concat mmers i:i + (ratio - 1)
                 discretized_sketch = 0;
                 uint32_t bit_index = 0;
-                for (unsigned long mmer = kmer; mmer < kmer + (ratio - 1) * m_stride; mmer += m_stride) {
+                //std::cout << s.substr(kmer, k) << std::endl;
+                for (unsigned long mmer = kmer; mmer < kmer + m_stride * m; mmer += (m / m_stride)) {
                     // set bits
+                    // std::cout << "\t" << s.substr(mmer, m) << std::endl;
                     auto m_sketch = m_sketches[mmer];
                     discretized_sketch <<= embed_dim;
                     discretized_sketch |= m_sketch;
@@ -528,6 +530,14 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                 pq.pop();
                 sketch_maps[n_repeat][std::get<1>(top)].push_back(std::get<2>(top));
             }
+//            std::cout << "graph" << std::endl;
+//            for(auto x : sketch_maps[n_repeat]) {
+//                std::cout << x.first << std::endl;
+//
+//                for (auto y: x.second) {
+//                    std::cout << y << " " << get_node_sequence(y) << std::endl;
+//                }
+//            }
         });
     }
 }

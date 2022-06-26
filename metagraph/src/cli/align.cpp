@@ -362,11 +362,11 @@ void generate_sequences(const DeBruijnGraph &graph,
             paths.push_back(nodes);
 
             // debug
-//            std::cout << spelling << " --- " << mutated_string << std::endl;
-//            for(int x = 0; x < nodes.size(); ++x) {
-//                std::cout << spelling.substr(x,graph.get_k()) << "--" << mutated_string.substr(x,graph.get_k()) << " " << nodes[x] << "\n";
-//            }
-//            std::cout << std::endl;
+           std::cout << spelling << " --- " << mutated_string << std::endl;
+           for(int x = 0; x < nodes.size(); ++x) {
+               std::cout << spelling.substr(x,graph.get_k()) << "--" << mutated_string.substr(x,graph.get_k()) << " " << nodes[x] << "\n";
+           }
+           std::cout << std::endl;
         }
 
     }
@@ -380,7 +380,7 @@ int align_to_graph(Config *config) {
     assert(config->infbase.size());
     // initialize graph
     auto graph = load_critical_dbg(config->infbase);
-    // graph->print(std::cout);
+//    graph->print(std::cout);
     
     fprintf(stderr, "Number of nodes: %llu\n", graph->max_index());
     // initialize alphabet

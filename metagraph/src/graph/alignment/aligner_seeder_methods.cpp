@@ -84,6 +84,7 @@ auto ExactSeeder::get_seeds() const -> std::vector<Seed> {
 }
 
 auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
+//    std::cout << "get_seeds()" << std::endl;
     size_t k = graph_.get_k();
 
     assert(k >= config_.min_seed_length);
@@ -114,7 +115,7 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                                                                    config_.tuple_length,
                                                                    m,
                                                                    1,
-                                                                   n_repeat);
+                                                                   0);
         m_sketches = tensor.compute_discretized(query_to_int);
         end_clipping = query_.size() - k;
         for (unsigned long kmer = 0; kmer < query_.size() - k + 1; ++kmer, --end_clipping) {
@@ -123,7 +124,7 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
             // So for kmer i, we concat mmers i:i + (ratio - 1)
             discretized_sketch = 0;
             uint32_t bit_index = 0;
-            for(unsigned long mmer = kmer; mmer < kmer + (ratio - 1) * m_stride; mmer += m_stride) {
+            for(unsigned long mmer = kmer; mmer < kmer + m_stride * m; mmer += (m / m_stride)) {
                 // set bits
                 auto m_sketch = m_sketches[mmer];
                 discretized_sketch <<= config_.embed_dim;
@@ -143,8 +144,10 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                 pq.pop();
             }
         }
+//        std::cout << "aligner" << std::endl;
         while (!pq.empty()) {
             auto top = pq.top();
+//            std::cout << std::get<1>(top) << " " << std::get<2>(top) << " " << query_.substr(std::get<2>(top), k) << std::endl;
             pq.pop();
             if (graph_.sketch_maps[n_repeat].count(std::get<1>(top))) {
                 for (auto match : graph_.sketch_maps[n_repeat].at(std::get<1>(top)))
@@ -155,6 +158,7 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
             }
         }
     }
+    //seeds_ = seeds;
     return seeds;
 }
 
@@ -171,6 +175,7 @@ const DBGSuccinct& get_base_dbg_succ(const DeBruijnGraph *graph) {
 }
 
 auto SketchSeeder::get_alignments() const -> std::vector<Alignment> {
+//    std::cout << "gegct_alignments()" << std::endl;
     std::vector<Seed> seeds = get_seeds();
     std::vector<Alignment> alignments(seeds.size());
     const DBGSuccinct &dbg_succ = get_base_dbg_succ(&this->graph_);
