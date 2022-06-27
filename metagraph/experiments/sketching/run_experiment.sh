@@ -35,7 +35,7 @@ eval $sketch_command
 seeder="default"
 #######################
 
-default_command="python seed_recall_on_k.py --output-path $output_path --embed-dim $embed_dim --n-times-sketch $n_times_sketch --mutation_rate $mutation_rate --num_query_seqs $num_query_seqs --parallel $parallel --batch-size $batch_size --seeder $seeder --metagraph-path $metagraph_path --max-k $max_k --max-path-size $max_path_size --min-path-size $min_path_size"
+default_command="python seed_recall_on_k.py --minimizer-window $minimizer_window --output-path $output_path --embed-dim $embed_dim --n-times-sketch $n_times_sketch --mutation_rate $mutation_rate --num_query_seqs $num_query_seqs --parallel $parallel --batch-size $batch_size --seeder $seeder --metagraph-path $metagraph_path --max-k $max_k --max-path-size $max_path_size --min-path-size $min_path_size"
 
 echo "[INFO] Launching the experiment on DEFAULT"
 eval $default_command

@@ -461,7 +461,8 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                                      size_t tuple_length,
                                      size_t m_stride,
                                      uint32_t n_times_sketch,
-                                     uint32_t minimizer_window) {
+                                     uint32_t minimizer_window,
+                                     uint32_t num_threads) {
     sketch_maps = std::vector<std::unordered_map<key_type, std::vector<node_index>>>(n_times_sketch);
     map_backward = std::unordered_map<node_index, node_index>();
     random_directions = std::vector<std::vector<uint8_t>>(n_times_sketch);
@@ -480,10 +481,10 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                     random_directions[n_repeat] = random_direction;
 
                     // Generate sequence of ints
-                    std::vector<uint8_t> node_sequence_to_int(s.size());
-                    for (uint32_t i = 0; i < s.size(); ++i) {
-                        node_sequence_to_int[i] = ts::char2int(s[i]);
-                    }
+//                    std::vector<uint8_t> node_sequence_to_int(s.size());
+//                    for (uint32_t i = 0; i < s.size(); ++i) {
+//                        node_sequence_to_int[i] = ts::char2int(s[i]);
+//                    }
 
                     // Sketch
                     ts::TensorSlide <uint8_t> tensor = ts::TensorSlide<uint8_t>(kmer_word_size,
@@ -492,7 +493,31 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                                                                                 m,
                                                                                 1,
                                                                                 n_repeat);
-                    std::vector <uint64_t> m_sketches = tensor.compute_discretized(node_sequence_to_int);
+                    //std::vector <uint64_t> sanity_sketches = tensor.compute_discretized(node_sequence_to_int);
+                    // Break a unitig into multiple pieces
+                    std::vector<std::vector<uint64_t>> m_sketches_per_thread(num_threads);
+                    #pragma omp parallel for num_threads(num_threads)
+                    for(uint32_t thread = 0; thread < num_threads; ++thread) {
+                        uint32_t start = thread * (s.size() / num_threads) + (thread > 0) * (-k + 1);
+                        uint32_t end = (thread + 1) * (s.size() / num_threads) + (thread == num_threads - 1) * (s.size() % num_threads);
+
+                        std::string my_piece_of_s = s.substr(start, end - start + 1);
+                        std::vector<uint8_t> my_node_sequence_to_int(my_piece_of_s.size());
+                        for (uint32_t i = 0; i < my_piece_of_s.size(); ++i) {
+                            my_node_sequence_to_int[i] = ts::char2int(my_piece_of_s[i]);
+                        }
+
+                        std::vector <uint64_t> my_m_sketches = tensor.compute_discretized(my_node_sequence_to_int);
+                        m_sketches_per_thread[thread] = my_m_sketches;
+                    }
+                    // Merge it all
+                    std::vector<uint64_t> m_sketches(s.size() - m + 1);
+                    for(uint32_t thread = 0; thread < num_threads; ++thread) {
+                        if (thread == 0)
+                            std::move(m_sketches_per_thread[thread].begin(), m_sketches_per_thread[thread].end(), m_sketches.begin());
+                        else
+                            std::move(m_sketches_per_thread[thread].begin(), m_sketches_per_thread[thread].end(), m_sketches.begin() + m_sketches_per_thread[thread - 1].size());
+                    }
 
                     // Compute minimizers
                     // Take each kmer in [0, delta], [delta, 2delta] etc

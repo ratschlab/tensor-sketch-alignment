@@ -169,7 +169,8 @@ class DeBruijnGraph : public SequenceGraph {
                                   size_t tuple_length,
                                   size_t stride,
                                   uint32_t n_times_sketch,
-                                  uint32_t minimizer_window);
+                                  uint32_t minimizer_window,
+                                  uint32_t num_threads);
     std::vector<std::unordered_map<key_type, std::vector<node_index>>> sketch_maps;
     std::vector<std::vector<uint8_t>> random_directions;
     std::unordered_map<node_index, node_index> map_backward;

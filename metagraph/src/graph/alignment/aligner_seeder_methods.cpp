@@ -165,9 +165,7 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                     for (uint32_t bit = 0; bit < embed_dim; ++bit, ++bit_index) {
                         int8_t sketch_bit = ((m_sketch >> bit) & 1);
                         int8_t random_bit = (random_direction[bit_index]);
-//                        distance += (sketch_bit * random_bit);
                         distance += (sketch_bit - random_bit) * (sketch_bit - random_bit);
-
                     }
                 }
 

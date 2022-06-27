@@ -484,7 +484,8 @@ int align_to_graph(Config *config) {
                                 aligner_config.tuple_length,
                                 aligner_config.stride,
                                 aligner_config.n_times_sketch,
-                                aligner_config.minimizer_window);
+                                aligner_config.minimizer_window,
+                                get_num_threads());
     }
     std::unique_ptr<AnnotatedDBG> anno_dbg;
     if (config->infbase_annotators.size()) {
