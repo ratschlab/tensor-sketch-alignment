@@ -115,12 +115,23 @@ class TensorSlide : public Tensor<seq_type> {
         return sketches;
     }
 
+
+    uint8_t discretize(double x, std::vector<double> lut) {
+        if (x < lut.front()) {
+            return 0;
+        } else if (x > lut.back()) {
+            return lut.size();
+        }
+        auto it = upper_bound(lut.begin(), lut.end(), x);
+        return it - lut.begin();
+    }
+
     /**
      * Computes sliding sketches for the given sequence.
      * A sketch is computed every #stride characters on substrings of length #window.
      * @return seq.size()/stride sketches of size #sketch_dim
      */
-    std::vector<uint64_t> compute_discretized(const std::vector<seq_type> &seq) {
+    std::vector<uint64_t> compute_discretized(const std::vector<seq_type> &seq, std::vector<double> lut, uint32_t num_bits) {
         Timer timer("tensor_slide_sketch");
         std::vector<uint64_t> sketches((seq.size() - this->win_len) / this->stride + 1);
         if (seq.size() < this->subsequence_len) {
@@ -145,8 +156,7 @@ class TensorSlide : public Tensor<seq_type> {
             for (uint32_t p = 1; p <= tup_len; p++) {
                 // q-p must be smaller than i, hence the min in the condition
                 for (uint32_t q = std::min(p + i, (uint32_t)tup_len); q >= p; q--) {
-//                    double z = (double)(q - p + 1) / std::min(i + 1, win_len + 1);
-                    double z = 1.0; // numerical instability
+                    double z = (double)(q - p + 1) / std::min(i + 1, win_len + 1);
                     auto r = hashes[q - 1][seq[i]];
                     bool s = signs[q - 1][seq[i]];
                     if (s) {
@@ -167,8 +177,7 @@ class TensorSlide : public Tensor<seq_type> {
                         bool s = signs[p - 1][seq[ws]];
                         uint32_t q = p + diff;
                         // this computes t/(w-t); in our case t (the tuple length) is diff+1
-//                        double z = (double)(diff + 1) / (win_len - diff);
-                        double z = 1.0; // numerical instability
+                        double z = (double)(diff + 1) / (win_len - diff);
                         if (s) {
                             this->shift_sum_inplace(T1[p][q], T1[p + 1][q], r, -z);
                             this->shift_sum_inplace(T2[p][q], T2[p + 1][q], r, -z);
@@ -181,7 +190,7 @@ class TensorSlide : public Tensor<seq_type> {
             }
 
             if (i >= (win_len - 1) && (i + 1) % stride == 0) { // save a sketch every stride times
-                sketches[save_index++] = diff_discrete(T1[1].back(), T2[1].back());
+                sketches[save_index++] = diff_discrete(T1[1].back(), T2[1].back(), lut, num_bits);
             }
         }
         return sketches;
@@ -201,12 +210,12 @@ class TensorSlide : public Tensor<seq_type> {
         }
         return result;
     }
-    uint64_t diff_discrete(const std::vector<double> &a, const std::vector<double> &b) {
+    uint64_t diff_discrete(const std::vector<double> &a, const std::vector<double> &b, std::vector<double> lut, uint8_t num_bits) {
         assert(a.size() == b.size());
         uint64_t result = 0;
         for (uint32_t i = 0; i < a.size(); ++i) {
-            result <<= 1;
-            result |= (uint8_t)((a[i] - b[i]) < 0);
+            result <<= num_bits;
+            result |= (uint8_t)(discretize(a[i] - b[i], lut));
         }
         return result;
     }

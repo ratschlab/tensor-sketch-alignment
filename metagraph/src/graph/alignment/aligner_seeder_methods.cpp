@@ -106,7 +106,6 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
     int m_stride = config_.stride;
     int m = (m_stride * k) / ratio;
     uint32_t delta = config_.minimizer_window;
-    key_type min_distance_kmer_discretized_sketch = 0;
     uint32_t embed_dim = config_.embed_dim;
     for (uint32_t n_repeat = 0; n_repeat < config_.n_times_sketch; n_repeat++) {
         auto random_direction = graph_.random_directions[n_repeat];
@@ -116,14 +115,12 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                                                                     m,
                                                                     1,
                                                                     n_repeat);
-        std::vector <uint64_t> m_sketches = tensor.compute_discretized(query_to_int);
-        end_clipping = query_.size() - k;
+        std::vector <uint64_t> m_sketches = tensor.compute_discretized(query_to_int, graph_.lut_discretize, graph_.num_bits);
 
         uint32_t num_delta_windows = (query_.size() - k + 1) / delta;
-        for (uint32_t delta_window = 0; delta_window < num_delta_windows; ++delta_window) {
+        for (uint32_t delta_window = 0; delta_window <= num_delta_windows; ++delta_window) {
             uint32_t start_kmer = delta_window * delta;
-            uint32_t end_kmer = (delta_window == num_delta_windows - 1) ? query_.size() - k + 1 : (delta_window + 1) *
-                                                                                                  delta;
+            uint32_t end_kmer = std::min((uint32_t)(query_.size() - k + 1), (delta_window + 1) * delta);
 
             uint32_t min_distance = 1e8;
 
@@ -136,12 +133,10 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                 for (unsigned long mmer = kmer; mmer < kmer + m_stride * m; mmer += (m / m_stride)) {
                     auto m_sketch = m_sketches[mmer];
                     // go through the bits and compare with the random_direction
-                    for (uint32_t bit = 0; bit < embed_dim; ++bit, ++bit_index) {
+                    for (uint32_t bit = 0; bit < (embed_dim * graph_.num_bits); ++bit, ++bit_index) {
                         int8_t sketch_bit = ((m_sketch >> bit) & 1);
                         int8_t random_bit = (random_direction[bit_index]);
-//                        distance += (sketch_bit * random_bit);
-                        distance += (sketch_bit - random_bit) * (sketch_bit - random_bit);
-
+                        distance += sketch_bit ^ random_bit;
                     }
                 }
 
@@ -153,19 +148,24 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
 
             // Collect minimizers
             for (uint32_t kmer = start_kmer; kmer < end_kmer; ++kmer) {
+                end_clipping = query_.size() - (kmer + k);
                 int64_t distance = 0;
                 uint32_t bit_index = 0;
                 discretized_sketch = 0;
                 // Build the long thing (kmer from concatted mmers)
                 for (unsigned long mmer = kmer; mmer < kmer + m_stride * m; mmer += (m / m_stride)) {
                     auto m_sketch = m_sketches[mmer];
-                    discretized_sketch <<= embed_dim;
+                    discretized_sketch <<= (embed_dim * graph_.num_bits);
                     discretized_sketch |= m_sketch;
                     // go through the bits and compare with the random_direction
-                    for (uint32_t bit = 0; bit < embed_dim; ++bit, ++bit_index) {
+                    for (uint32_t bit = 0; bit < (embed_dim * graph_.num_bits); ++bit, ++bit_index) {
                         int8_t sketch_bit = ((m_sketch >> bit) & 1);
                         int8_t random_bit = (random_direction[bit_index]);
-                        distance += (sketch_bit - random_bit) * (sketch_bit - random_bit);
+                        // 0 0 = 0
+                        // 0 1 = 1
+                        // 1 0 = 1
+                        // 1 1 = 0
+                        distance += sketch_bit ^ random_bit;
                     }
                 }
 

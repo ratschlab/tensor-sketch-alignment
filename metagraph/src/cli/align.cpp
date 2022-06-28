@@ -479,6 +479,12 @@ int align_to_graph(Config *config) {
     // compute sketches
 
     if (config->seeder == "sketch") {
+        graph->compute_discretization(aligner_config.kmer_word_size,
+                                      aligner_config.embed_dim,
+                                      aligner_config.tuple_length,
+                                      1000,
+                                      5,
+                                      3);
         graph->compute_sketches(aligner_config.kmer_word_size,
                                 aligner_config.embed_dim,
                                 aligner_config.tuple_length,
