@@ -102,9 +102,9 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
         return seeds;
 
     key_type discretized_sketch = 0;
-    int ratio = 5;
-    int m_stride = config_.stride;
-    int m = (m_stride * k) / ratio;
+    uint32_t m = config_.m;
+    uint32_t stride = config_.stride;
+    uint32_t ratio = std::ceil((double)(k - m + 1) / (double)(stride));
     uint32_t delta = config_.minimizer_window;
     uint32_t embed_dim = config_.embed_dim;
     for (uint32_t n_repeat = 0; n_repeat < config_.n_times_sketch; n_repeat++) {
@@ -130,7 +130,7 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                 uint32_t bit_index = 0;
 
                 // Build the long thing (kmer from concatted mmers)
-                for (unsigned long mmer = kmer; mmer < kmer + m_stride * m; mmer += (m / m_stride)) {
+                for (unsigned long mmer = kmer; mmer < kmer + stride * ratio; mmer += stride) {
                     auto m_sketch = m_sketches[mmer];
                     // go through the bits and compare with the random_direction
                     for (uint32_t bit = 0; bit < (embed_dim * graph_.num_bits); ++bit, ++bit_index) {
@@ -153,7 +153,7 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                 uint32_t bit_index = 0;
                 discretized_sketch = 0;
                 // Build the long thing (kmer from concatted mmers)
-                for (unsigned long mmer = kmer; mmer < kmer + m_stride * m; mmer += (m / m_stride)) {
+                for (unsigned long mmer = kmer; mmer < kmer + stride * ratio; mmer += stride) {
                     auto m_sketch = m_sketches[mmer];
                     discretized_sketch <<= (embed_dim * graph_.num_bits);
                     discretized_sketch |= m_sketch;

@@ -60,6 +60,7 @@ DBGAlignerConfig initialize_aligner_config(const Config &config) {
         .embed_dim = config.embed_dim,
         .tuple_length = config.tuple_length,
         .stride = config.stride,
+        .m = config.m,
         .n_times_sketch = config.n_times_sketch,
         .minimizer_window = config.minimizer_window
     };
@@ -489,6 +490,7 @@ int align_to_graph(Config *config) {
                                 aligner_config.embed_dim,
                                 aligner_config.tuple_length,
                                 aligner_config.stride,
+                                aligner_config.m,
                                 aligner_config.n_times_sketch,
                                 aligner_config.minimizer_window,
                                 get_num_threads());

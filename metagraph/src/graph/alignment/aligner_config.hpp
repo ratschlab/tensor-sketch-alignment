@@ -110,6 +110,7 @@ struct DBGAlignerConfig {
     size_t embed_dim = 20;
     size_t tuple_length = 2;
     size_t stride = 2;
+    size_t m = 10;
     uint32_t n_times_sketch = 10;
     uint32_t minimizer_window = 20;
 };

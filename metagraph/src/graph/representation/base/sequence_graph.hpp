@@ -168,6 +168,7 @@ class DeBruijnGraph : public SequenceGraph {
                                   size_t embed_dim,
                                   size_t tuple_length,
                                   size_t stride,
+                                  size_t m,
                                   uint32_t n_times_sketch,
                                   uint32_t minimizer_window,
                                   uint32_t num_threads);

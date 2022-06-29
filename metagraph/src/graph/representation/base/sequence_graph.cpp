@@ -533,19 +533,22 @@ void DeBruijnGraph::compute_discretization(uint64_t kmer_word_size,
 void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                                      size_t embed_dim,
                                      size_t tuple_length,
-                                     size_t m_stride,
+                                     size_t stride,
+                                     size_t m,
                                      uint32_t n_times_sketch,
                                      uint32_t minimizer_window,
                                      uint32_t num_threads) {
     sketch_maps = std::vector<std::unordered_map<key_type, std::vector<node_index>>>(n_times_sketch);
     map_backward = std::unordered_map<node_index, node_index>();
     random_directions = std::vector<std::vector<uint8_t>>(n_times_sketch);
-    int ratio = 5;
-    int m = (m_stride * get_k()) / ratio;
-    std::vector<uint8_t> random_direction(embed_dim * num_bits * (ratio - 1));
     uint32_t k = get_k();
+    uint32_t ratio = std::ceil((double)(k - m + 1) / (double)(stride));
+
+    std::cout << "Concatting: " << ratio << " windows of size " << m  << " with stride " << stride << std::endl;
+    std::cout << "Total bits for discretized sketch: " << ratio * embed_dim * num_bits << std::endl;
+
+    std::vector<uint8_t> random_direction(embed_dim * num_bits * ratio);
     key_type discretized_sketch = 0;
-    uint32_t temp_num_threads = num_threads;
     uint32_t delta = minimizer_window;
     for (uint32_t n_repeat = 0; n_repeat < n_times_sketch; n_repeat++) {
         srand(n_repeat);
@@ -626,7 +629,7 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                             int64_t distance = 0;
                             uint32_t bit_index = 0;
                             // Build the long thing (kmer from concatted mmers)
-                            for (unsigned long mmer = kmer; mmer < kmer + m_stride * m; mmer += (m / m_stride)) {
+                            for (unsigned long mmer = kmer; mmer < kmer + stride * ratio; mmer += stride) {
                                 auto m_sketch = m_sketches[mmer];
                                 // go through the bits and compare with the random_direction
                                 for (uint32_t bit = 0; bit < (embed_dim * num_bits); ++bit, ++bit_index) {
@@ -648,7 +651,7 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                             uint32_t bit_index = 0;
 
                             // Build the long thing (kmer from concatted mmers)
-                            for (unsigned long mmer = kmer; mmer < kmer + m_stride * m; mmer += (m / m_stride)) {
+                            for (unsigned long mmer = kmer; mmer < kmer + stride * ratio; mmer += stride) {
                                 auto m_sketch = m_sketches[mmer]; // each one of these is embed_dim * num_bits bits
                                 discretized_sketch <<= (embed_dim * num_bits);
                                 discretized_sketch |= m_sketch;

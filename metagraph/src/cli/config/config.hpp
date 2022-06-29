@@ -29,7 +29,9 @@ class Config {
     kmer_type kmer_word_size = 4;
     size_t embed_dim = 20;
     size_t tuple_length = 2;
-    size_t stride = 2; // WARNING: This is m_stride, not stride
+    size_t m = 10;
+    size_t stride = m / 2;
+
     // Sketcher params, the above are for the sketch itself
     uint32_t n_times_sketch = 5;
     uint32_t mutation_rate = 0;
