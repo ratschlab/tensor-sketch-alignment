@@ -172,10 +172,14 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                 // Now I have the sketch and distance, check if minimal
                 if (distance == min_distance) {
                     if (graph_.sketch_maps[n_repeat].count(discretized_sketch)) {
-                        for (auto match: graph_.sketch_maps[n_repeat].at(discretized_sketch))
+//                        std::cout << discretized_sketch << std::endl;
+//                        std::cout << "query: " << query_.substr(kmer, k) << std::endl;
+                        for (auto match: graph_.sketch_maps[n_repeat].at(discretized_sketch)) {
+//                            std::cout << graph_.get_node_sequence(match) << std::endl;
                             seeds.emplace_back(query_.substr(kmer, k),
                                                std::vector<node_index>({match}),
                                                orientation_, 0, kmer, end_clipping);
+                        }
                     }
                 }
             }
