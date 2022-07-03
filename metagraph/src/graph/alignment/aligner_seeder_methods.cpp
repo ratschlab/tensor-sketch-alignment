@@ -83,8 +83,7 @@ auto ExactSeeder::get_seeds() const -> std::vector<Seed> {
     return seeds;
 }
 
-auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
-//    std::cout << "get_seeds()" << std::endl;
+std::vector<Seed> SketchSeeder::get_seeds() const {
     size_t k = graph_.get_k();
 
     assert(k >= config_.min_seed_length);
@@ -115,7 +114,7 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                                                                     m,
                                                                     1,
                                                                     n_repeat);
-        std::vector <uint64_t> m_sketches = tensor.compute_discretized(query_to_int, graph_.lut_discretize, graph_.num_bits);
+        std::vector <uint64_t> m_sketches = tensor.compute_discretized(query_to_int, graph_.G);
 
         uint32_t num_delta_windows = (query_.size() - k + 1) / delta;
         for (uint32_t delta_window = 0; delta_window <= num_delta_windows; ++delta_window) {
@@ -133,7 +132,7 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                 for (unsigned long mmer = kmer; mmer < kmer + stride * ratio; mmer += stride) {
                     auto m_sketch = m_sketches[mmer];
                     // go through the bits and compare with the random_direction
-                    for (uint32_t bit = 0; bit < (embed_dim * graph_.num_bits); ++bit, ++bit_index) {
+                    for (uint32_t bit = 0; bit < (embed_dim); ++bit, ++bit_index) {
                         int8_t sketch_bit = ((m_sketch >> bit) & 1);
                         int8_t random_bit = (random_direction[bit_index]);
                         distance += sketch_bit ^ random_bit;
@@ -155,10 +154,10 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                 // Build the long thing (kmer from concatted mmers)
                 for (unsigned long mmer = kmer; mmer < kmer + stride * ratio; mmer += stride) {
                     auto m_sketch = m_sketches[mmer];
-                    discretized_sketch <<= (embed_dim * graph_.num_bits);
+                    discretized_sketch <<= (embed_dim);
                     discretized_sketch |= m_sketch;
                     // go through the bits and compare with the random_direction
-                    for (uint32_t bit = 0; bit < (embed_dim * graph_.num_bits); ++bit, ++bit_index) {
+                    for (uint32_t bit = 0; bit < (embed_dim); ++bit, ++bit_index) {
                         int8_t sketch_bit = ((m_sketch >> bit) & 1);
                         int8_t random_bit = (random_direction[bit_index]);
                         // 0 0 = 0
@@ -172,13 +171,70 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
                 // Now I have the sketch and distance, check if minimal
                 if (distance == min_distance) {
                     if (graph_.sketch_maps[n_repeat].count(discretized_sketch)) {
+//                        std::cout << "hit" << std::endl;
 //                        std::cout << discretized_sketch << std::endl;
 //                        std::cout << "query: " << query_.substr(kmer, k) << std::endl;
                         for (auto match: graph_.sketch_maps[n_repeat].at(discretized_sketch)) {
 //                            std::cout << graph_.get_node_sequence(match) << std::endl;
-                            seeds.emplace_back(query_.substr(kmer, k),
+                            uint32_t t = 5;
+                            auto out = graph_.get_forward_tmers(match, t, 100);
+                            // Look for goodies
+                            uint64_t kmer_stream = 0;
+                            uint32_t cleanup = pow(2, 2 * t) - 1;
+                            uint32_t position = 0;
+                            //std::cout << query_.substr(kmer, k) << std::endl;
+
+                            // Go over all the tmers inside of this kmer
+                            std::unordered_map<int64_t, uint32_t> delta_count;
+                            uint32_t max_count = 0;
+                            for (uint32_t i = kmer; i < std::min(kmer + k, query_.size() - k); ++i, ++position) {
+                                kmer_stream <<= 2;
+                                kmer_stream |= query_to_int[i];
+                                kmer_stream &= cleanup;
+
+                                if (position >= t - 1) {
+                                    // Look for hits
+                                    if (out.find(kmer_stream) != out.end()) {
+                                        // Found hit
+                                        int64_t delta_pos = (int64_t)(position - (t - 1)) - (int64_t)out[kmer_stream];
+                                        delta_count[delta_pos]++;
+                                        max_count = max(max_count, delta_count[delta_pos]);
+                                    }
+                                }
+                            }
+                            for(auto item: delta_count) {
+                                if (item.second < max_count)
+                                    continue;
+                                int64_t delta_pos = item.first;
+                                if (delta_pos == 0) {
+                                    // Case 0: hit is where I am -> Do nothing
+                                    // Do nothing
+                                } else if (delta_pos < 0) {
+                                    // Case 1: hit is forward from where I am -> map forwads abs(delta_pos) nodes
+                                    for(uint32_t idx = 0; idx < abs(delta_pos); ++idx) {
+                                        graph_.adjacent_outgoing_nodes(match, [&](node_index fwd){
+                                            match = fwd;
+                                        });
+                                    }
+                                } else if (delta_pos > 0) {
+                                    // Case 2: hit is backwards from where I am -> map backwards abs(delta_pos) nodes
+                                    for(uint32_t idx = 0; idx < abs(delta_pos); ++idx) {
+                                        graph_.adjacent_incoming_nodes(match, [&](node_index bwd){
+                                            match = bwd;
+                                        });
+                                    }
+                                }
+                                seeds.emplace_back(query_.substr(kmer, k),
                                                std::vector<node_index>({match}),
                                                orientation_, 0, kmer, end_clipping);
+                            }
+
+
+//                            seeds.emplace_back(query_.substr(kmer, k),
+//                                               std::vector<node_index>({match}),
+//                                               orientation_, 0, kmer, end_clipping);
+
+//                            std::cout << query_.substr(kmer, k) << "=" << graph_.get_node_sequence(match) << std::endl;
                         }
                     }
                 }
@@ -203,6 +259,9 @@ const DBGSuccinct& get_base_dbg_succ(const DeBruijnGraph *graph) {
 auto SketchSeeder::get_alignments() const -> std::vector<Alignment> {
 //    std::cout << "gegct_alignments()" << std::endl;
     std::vector<Seed> seeds = get_seeds();
+    if (seeds.size() == 0) {
+        return {};
+    }
     std::vector<Alignment> alignments(seeds.size());
     const DBGSuccinct &dbg_succ = get_base_dbg_succ(&this->graph_);
     auto k = graph_.get_k();

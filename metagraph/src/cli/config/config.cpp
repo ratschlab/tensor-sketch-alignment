@@ -336,7 +336,7 @@ Config::Config(int argc, char *argv[]) {
             fprintf(stderr, "\nWARNING: Number of query sequences: %d\n", num_query_seqs);
             fprintf(stderr, "\nWARNING: Mutation rate: %d\n", mutation_rate);
             fprintf(stderr, "\nWARNING: Saving sequences to: %s\n\n", output_path.c_str());
-            fnames.push_back(output_path);
+            fnames.push_back(output_path + "mutated.fa");
         } else if (!strcmp(argv[i], "--stride")) {
             stride = std::stoi(get_value(i++));
         } else if (!strcmp(argv[i], "--m")) {

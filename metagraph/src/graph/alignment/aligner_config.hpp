@@ -106,9 +106,9 @@ struct DBGAlignerConfig {
     // Sketches
     using kmer_type = uint64_t;
     using seq_type = uint8_t;
-    kmer_type kmer_word_size = ts::int_pow<kmer_type>(ts::alphabet_size, 1);
+    kmer_type kmer_word_size = 4;
     size_t embed_dim = 20;
-    size_t tuple_length = 2;
+    size_t tuple_length = 3;
     size_t stride = 2;
     size_t m = 10;
     uint32_t n_times_sketch = 10;

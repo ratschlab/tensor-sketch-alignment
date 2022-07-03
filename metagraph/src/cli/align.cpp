@@ -296,16 +296,37 @@ using kmer_type = uint64_t;
 using seq_type = uint8_t;
 
 string mutate(string s, int mutation_rate, std::vector<char> alphabet) {
-    std::string mutated_string = s;
-    for(uint32_t i = 0; i < s.size(); ++i) {
+    std::string mutated_string;
+    uint32_t counter = 0;
+    while (counter < s.size()) {
         if (rand() % 100 < mutation_rate) {
-            // mutate
-            char new_c = alphabet[rand() % alphabet.size()];
-            while(new_c == s[i]) {
-                new_c = alphabet[rand() % alphabet.size()];
-            }
-
-            mutated_string[i] = new_c;
+                char new_c = alphabet[rand() % alphabet.size()];
+                while (new_c == s[counter]) {
+                    new_c = alphabet[rand() % alphabet.size()];
+                }
+                mutated_string += new_c;
+                counter++;
+//            uint32_t chance = rand() % 100; // 25% chance of nothing, substitution, insertion, deletion
+//            if (chance <= 33) {
+//                // substitution
+//                char new_c = alphabet[rand() % alphabet.size()];
+//                while (new_c == s[counter]) {
+//                    new_c = alphabet[rand() % alphabet.size()];
+//                }
+//                mutated_string += new_c;
+//                counter++;
+//            } else if (chance > 33 && chance <= 66) {
+//                // deletion
+//                counter++;
+//            } else if (chance > 66) {
+//                // insertion
+//                char new_c = alphabet[rand() % alphabet.size()];
+//                mutated_string += new_c;
+//            }
+        } else {
+            // nothing
+            mutated_string += s[counter];
+            counter++;
         }
     }
     return mutated_string;
@@ -317,16 +338,17 @@ void generate_sequences(const DeBruijnGraph &graph,
                         size_t num_paths,
                         int mutation_rate,
                         std::vector<char> alphabet,
-                        std::vector<std::string>& spellings,
+                        std::vector<std::string>& reference_spellings,
+                        std::vector<std::string>& mutated_spellings,
                         std::vector<std::vector<uint64_t>>& paths) {
     std::mt19937 gen(1);
     std::uniform_int_distribution<uint64_t> dis(1, graph.num_nodes());
 
-    while (spellings.size() < num_paths) {
+    while (mutated_spellings.size() < num_paths) {
         uint64_t root_node = dis(gen);
         std::string root_node_seq = graph.get_node_sequence(root_node);
         std::vector <uint64_t> nodes;
-        std::string spelling;
+        std::string reference_spelling;
         bool hit_dummy = false;
 
         // If root node contains a $, then just keep looking
@@ -336,7 +358,7 @@ void generate_sequences(const DeBruijnGraph &graph,
         }
 
         nodes.push_back(root_node);
-        spelling = root_node_seq;
+        reference_spelling= root_node_seq;
         while (nodes.size() < max_path_size && !hit_dummy && graph.outdegree(nodes.back()) > 0) {
             std::vector<uint64_t> kmers;
             std::vector<uint8_t> next_char;
@@ -354,24 +376,19 @@ void generate_sequences(const DeBruijnGraph &graph,
                 break;
             auto pos = rand() % kmers.size();
             nodes.push_back(kmers[pos]);
-            spelling += next_char[pos];
+            reference_spelling += next_char[pos];
         }
 
         if (nodes.size() >= min_path_size && nodes.size() <= max_path_size) {
-            auto mutated_string = mutate(spelling, mutation_rate, alphabet);
-            spellings.push_back(mutated_string);
+            reference_spellings.push_back(reference_spelling);
+            std::string mutated_spelling = mutate(reference_spelling, mutation_rate, alphabet);
+            mutated_spellings.push_back(mutated_spelling);
             paths.push_back(nodes);
 
-            // debug
-//           std::cout << spelling << " --- " << mutated_string << std::endl;
-//           for(int x = 0; x < nodes.size(); ++x) {
-//               std::cout << spelling.substr(x,graph.get_k()) << "--" << mutated_string.substr(x,graph.get_k()) << " " << nodes[x] << "\n";
-//           }
-//           std::cout << std::endl;
         }
 
     }
-    std::unordered_set<string> unique(spellings.begin(), spellings.end());
+    std::unordered_set<string> unique(reference_spellings.begin(), reference_spellings.end());
     fprintf(stderr, "Unique sequences: %lu/%lu\n", unique.size(), num_paths);
 }
 
@@ -381,7 +398,7 @@ int align_to_graph(Config *config) {
     assert(config->infbase.size());
     // initialize graph
     auto graph = load_critical_dbg(config->infbase);
-//    graph->print(std::cout);
+    //graph->print(std::cout);
     
     fprintf(stderr, "Number of nodes: %llu\n", graph->max_index());
     // initialize alphabet
@@ -389,9 +406,11 @@ int align_to_graph(Config *config) {
 
 
 
-    std::vector<std::string> spellings;
+    std::vector<std::string> reference_spellings;
+    std::vector<std::string> mutated_spellings;
     std::vector<std::vector<uint64_t>> paths;
-    std::ofstream out(config->output_path);
+    std::ofstream reference_out(config->output_path + "reference.fa");
+    std::ofstream mutated_out(config->output_path + "mutated.fa");
     if (config->experiment) {
         if (config->min_path_size > graph->max_index()) {
             logger->error("min_path_size = {} is larger than graph->max_index() = {}",
@@ -405,14 +424,27 @@ int align_to_graph(Config *config) {
                            config->num_query_seqs,
                            config->mutation_rate,
                            {'A', 'T', 'G', 'C'},
-                           spellings,
+                           reference_spellings,
+                           mutated_spellings,
                            paths);
         for (uint32_t i = 0; i < config->num_query_seqs; ++i) {
             std::string header = ">Q" + std::to_string(i);
-            out << header << std::endl;
-            out << spellings[i] << std::endl;
+            reference_out << header << std::endl;
+            mutated_out << header << std::endl;
+
+            reference_out << reference_spellings[i] << std::endl;
+            mutated_out << mutated_spellings[i] << std::endl;
+
+            // debug
+//            std::cout << header << std::endl;
+//            std::cout << reference_spellings[i] << "\n" << mutated_spellings[i]<< std::endl;
+////            for(int x = 0; x < nodes.size(); ++x) {
+////                std::cout << reference_spelling.substr(x,graph.get_k()) << "--" << mutated_spelling.substr(x, graph.get_k()) << " " << nodes[x] << "\n";
+////            }
+//            std::cout << std::endl;
         }
-        out.close();
+        mutated_out.close();
+        reference_out.close();
     }
 
     const auto &files = config->fnames;
@@ -480,12 +512,17 @@ int align_to_graph(Config *config) {
     // compute sketches
 
     if (config->seeder == "sketch") {
-        graph->compute_discretization(aligner_config.kmer_word_size,
-                                      aligner_config.embed_dim,
-                                      aligner_config.tuple_length,
-                                      1000,
-                                      5,
-                                      3);
+        // Set G
+        std::default_random_engine generator(0);
+        std::normal_distribution<double> distribution(0.0,1.0);
+        std::vector<std::vector<double>> G(aligner_config.embed_dim, std::vector<double>(aligner_config.embed_dim));
+        for(auto i = 0; i < aligner_config.embed_dim; ++i) {
+            for(auto j = 0; j < aligner_config.embed_dim; ++j) {
+                G[i][j] = distribution(generator);
+            }
+        }
+        graph->G = G;
+
         graph->compute_sketches(aligner_config.kmer_word_size,
                                 aligner_config.embed_dim,
                                 aligner_config.tuple_length,
@@ -519,12 +556,7 @@ int align_to_graph(Config *config) {
         auto end = fasta_parser.end();
 
         size_t num_batches = 0;
-
-        std::unordered_map<std::string, std::vector<Seed>> forward_query_seeds;
-        std::unordered_map<std::string, std::vector<Seed>> rc_query_seeds;
-        std::unordered_map<std::string, double> explored_nodes_per_kmer_per_query;
         std::mutex stats_mutex;
-
         while (it != end) {
             uint64_t num_bytes_read = 0;
 
@@ -580,83 +612,13 @@ int align_to_graph(Config *config) {
                         *out << res;
                     }
                 );
-
-                // Merge into the big map
-                std::lock_guard<std::mutex> lock1(stats_mutex);
-                {
-                    forward_query_seeds.merge(aligner->forward_query_seeds);
-                    rc_query_seeds.merge(aligner->rc_query_seeds);
-                    explored_nodes_per_kmer_per_query.merge(aligner->explored_nodes_per_kmer_per_query);
-                }
             });
-        };
+        }
 
         thread_pool.join();
 
         float avg_time = data_reading_timer.elapsed() / config->num_query_seqs;
-
-        // Compute the recall now
-        int recalled_paths = 0;
-        double precision = 0.0;
-        int n_precision_gt_zero = 0;
-        for(int seq_i = 0; seq_i < config->num_query_seqs; ++seq_i) {
-            std::string header = "Q" + std::to_string(seq_i);
-
-            // Get query sequence and path
-            std::string query_seq = spellings[seq_i];
-            std::vector<uint64_t> path = paths[seq_i];
-
-            // Get matched seeds (fwd and bwd)
-            auto fwd_seeds = forward_query_seeds[header];
-            auto rc_seeds = rc_query_seeds[header]; //unused
-            precision += explored_nodes_per_kmer_per_query[header];
-            if(explored_nodes_per_kmer_per_query[header] > 0.0)
-                n_precision_gt_zero++;
-            int recalled = 0;
-            // Check if the forward sequence recalled
-            for(auto seed : fwd_seeds) {
-                auto seed_nodes = seed.get_nodes();
-
-                int match_start = seed.get_clipping();
-                int num_matched = seed_nodes.size();
-
-                for(int i = 0; i < num_matched; ++i) {
-                    std::string kmer = query_seq.substr(match_start + i, graph->get_k());
-                    uint64_t node = path[match_start + i];
-                    if (config->seeder == "sketch") {
-                        if (std::count(seed_nodes.begin(), seed_nodes.end(), graph->map_backward[node])) {
-                            recalled++;
-                            break;
-                        }
-                    }
-                    else {
-                        // Default seeder
-                        if (std::count(seed_nodes.begin(), seed_nodes.end(), node)) {
-                            recalled++;
-                            break;
-                        }
-                    }
-                }
-
-                if (recalled > 0) {
-                    break;
-                }
-            }
-            recalled_paths += (recalled > 0);
-        }
-
-        if (n_precision_gt_zero > 0.0)
-          std::cout << "{"
-                    << "\"recall\":" << (float)recalled_paths / (float)config->num_query_seqs << ","
-                    << "\"precision\":" << precision/ (double)n_precision_gt_zero << ","
-                    << "\"avg_time\":" << avg_time
-                    << "}";
-        else
-          std::cout << "{"
-                    << "\"recall\":" << (float)recalled_paths / (float)config->num_query_seqs << ","
-                    << "\"precision\":" << 0 << ","
-                    << "\"avg_time\":" << avg_time
-                    << "}";
+        std::cout << "{\"time\":" << avg_time << "}";
         logger->trace("File {} processed in {} sec, "
                       "num batches: {}, batch size: {} KB, "
                       "current mem usage: {} MB, total time {} sec",

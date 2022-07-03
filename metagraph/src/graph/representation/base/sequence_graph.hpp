@@ -172,18 +172,14 @@ class DeBruijnGraph : public SequenceGraph {
                                   uint32_t n_times_sketch,
                                   uint32_t minimizer_window,
                                   uint32_t num_threads);
-    virtual void compute_discretization(uint64_t kmer_word_size,
-                                        size_t embed_dim,
-                                        size_t tuple_length,
-                                        size_t min_values,
-                                        size_t num_bins,
-                                        size_t num_bits_);
-    virtual uint8_t discretize(double x, std::vector<double> lut);
-    std::vector<double> lut_discretize;
-    size_t num_bits;
+    std::vector<std::vector<double>> G;
     std::vector<std::unordered_map<key_type, std::vector<node_index>>> sketch_maps;
     std::vector<std::vector<uint8_t>> random_directions;
-    std::unordered_map<node_index, node_index> map_backward;
+
+    // Returns a map from tmer to the node_index
+    // node_index corresponds to the node where the tmer starts at
+    // n is the number of tmers
+    virtual std::unordered_map<std::uint64_t , uint64_t> get_forward_tmers(node_index start, uint32_t t, uint32_t n) const;
 
     virtual ~DeBruijnGraph() {}
 

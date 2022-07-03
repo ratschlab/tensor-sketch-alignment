@@ -2,7 +2,7 @@ rm *.png # cleanup
 
 # Parameters
 metagraph_path="/home/alex/metagraph/metagraph/build/metagraph"
-output_path="./data/generated.fa"
+output_path="./data"
 max_k=90
 graph_seq_len=100000000
 

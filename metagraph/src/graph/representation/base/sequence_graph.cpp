@@ -20,6 +20,7 @@
 #include "sketch/tensor_block.hpp"
 #include "sketch/tensor_embedding.hpp"
 #include "sketch/tensor_slide.hpp"
+#include <queue>
 namespace mtg {
 namespace graph {
 using namespace boost::multiprecision;
@@ -456,80 +457,49 @@ void DeBruijnGraph
     });
 }
 
-uint8_t DeBruijnGraph::discretize(double x, std::vector<double> lut) {
-    if (x < lut.front()) {
-        return 0;
-    } else if (x > lut.back()) {
-        return lut.size();
-    }
-    auto it = upper_bound(lut.begin(), lut.end(), x);
-    return it - lut.begin();
-}
+std::unordered_map<uint64_t, uint64_t> DeBruijnGraph::get_forward_tmers(node_index start, uint32_t t, uint32_t n) const {
+    std::unordered_map<uint64_t, uint64_t> output;
+    output.reserve(n);
+    // TODO: Fix this nasty implementation
+    uint32_t kmer_stream = 0;
+    uint32_t cleanup = pow(2, 2 * t) - 1;
+    node_index node = start;
 
-void DeBruijnGraph::compute_discretization(uint64_t kmer_word_size,
-                            size_t embed_dim,
-                            size_t tuple_length,
-                            size_t min_values,
-                            size_t num_bins,
-                            size_t num_bits_) {
-    lut_discretize = std::vector<double>(num_bins - 1);
-    num_bits = num_bits_;
-    // How many nodes we need?
-    uint64_t nodes_needed = min_values / embed_dim + 1;
-    std::mt19937 gen(1);
-    std::uniform_int_distribution<uint64_t> dis(1, num_nodes());
-    // Get random nodes
-    std::vector<double> sampled_sketches;
-    uint64_t num_nodes = 0;
-    while (num_nodes < nodes_needed) {
-        uint64_t node = dis(gen);
-        std::string node_seq = get_node_sequence(node);
+    // I am k-1 nodes back
+    // ASCZXCZXC - node
+    // ASCZXCZXC - seed
 
-        // If node contains a $, then just keep looking
-        while (node_seq.find("$") != std::string::npos) {
-            node = dis(gen);
-            node_seq = get_node_sequence(node);
-        }
-        std::vector<uint8_t> node_sequence_to_int(node_seq.size());
-        for (uint32_t i = 0; i < node_seq.size(); ++i) {
-            node_sequence_to_int[i] = ts::char2int(node_seq[i]);
-        }
-        // Sketch node
-        std::vector<double> sketches = ts::Tensor<uint8_t>(kmer_word_size, embed_dim, tuple_length, 0).compute(node_sequence_to_int);
+    // QQQQQQASCZXCZXC - node
+    // DZXCZXDDD
+    //         DZXCZXDDD
+    // Q = k - 1 nodes back
+    // QQQQQQQQASCZXCZXC
+    // ^ start
+    // ASCZXCZXC - seed
 
-        // Save
-        sampled_sketches.insert(std::end(sampled_sketches), std::begin(sketches), std::end(sketches));
-        num_nodes++;
-    }
+    // Go one back
+    adjacent_incoming_nodes(node, [&](node_index back_node){
+        node = back_node;
+    });
 
-    // Sort to get icdf
-    std::sort(sampled_sketches.begin(), sampled_sketches.end());
-    uint64_t num_values = sampled_sketches.size();
-
-    for(uint32_t i = 1; i < num_bins; ++i) {
-        uint32_t index = (num_values * i) / num_bins;
-        // num_bins = 5
-        // 0, num_values/5
-        // num_values/5, 2*..
-        // 2*... 3*..
-        // 3*... 4*...
-        // 4*.. 5*..
-        if (i == num_bins)
-            index -= 1;
-        lut_discretize[i-1] = sampled_sketches[index];
-    }
-
-
-//    for(auto x: sampled_sketches) {
-//        std::cout << x << ", ";
+    // Go k back
+//    for (uint32_t x = 0; x < get_k(); ++x) {
+//        adjacent_incoming_nodes(node, [&](node_index back_node){
+//            node = back_node;
+//        });
 //    }
-//
-//    std::cout << std::endl;
-//    std::cout << sampled_sketches[num_values / 3] << std::endl;
-//    std::cout << sampled_sketches[2 * num_values / 3] << std::endl;
-//    std::cout << sampled_sketches[num_values - 1] << std::endl;
-}
+    // QQQQQQQQQASCZXCZXC
+    // ASCZXCZXC - seed
 
+    char c;
+    uint32_t delta = 0;
+    for(uint32_t i = 0; i < n; ++i) { call_outgoing_kmers(node, [&](node_index next, char next_char){ node = next; c = next_char; }); kmer_stream <<= 2; kmer_stream |= ts::char2int(c); kmer_stream &= cleanup; if (i >= t - 1) {
+            output[kmer_stream] = delta++;
+        }
+    }
+
+    return output;
+}
 void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                                      size_t embed_dim,
                                      size_t tuple_length,
@@ -539,22 +509,21 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                                      uint32_t minimizer_window,
                                      uint32_t num_threads) {
     sketch_maps = std::vector<std::unordered_map<key_type, std::vector<node_index>>>(n_times_sketch);
-    map_backward = std::unordered_map<node_index, node_index>();
     random_directions = std::vector<std::vector<uint8_t>>(n_times_sketch);
     uint32_t k = get_k();
     uint32_t ratio = std::ceil((double)(k - m + 1) / (double)(stride));
 
-    std::cout << "Concatting: " << ratio << " windows of size " << m  << " with stride " << stride << std::endl;
-    std::cout << "Total bits for discretized sketch: " << ratio * embed_dim * num_bits << std::endl;
+//    std::cout << "Concatting: " << ratio << " windows of size " << m  << " with stride " << stride << std::endl;
+//    std::cout << "Total bits for discretized sketch: " << ratio * embed_dim << std::endl;
 
-    std::vector<uint8_t> random_direction(embed_dim * num_bits * ratio);
+    std::vector<uint8_t> random_direction(embed_dim * ratio);
     key_type discretized_sketch = 0;
     uint32_t delta = minimizer_window;
     for (uint32_t n_repeat = 0; n_repeat < n_times_sketch; n_repeat++) {
         srand(n_repeat);
         std::generate(random_direction.begin(), random_direction.end(), []() { return rand() % 2; });
         random_directions[n_repeat] = random_direction;
-        call_sequences(
+        call_unitigs(
                 [&](const std::string &s, const std::vector <uint64_t> &v) {
                     std::vector <uint64_t> m_sketches;
                     if (v.size() < k - 1) {
@@ -572,7 +541,7 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                                                               tuple_length,
                                                               m,
                                                               1,
-                                                              n_repeat).compute_discretized(node_sequence_to_int, lut_discretize, num_bits);
+                                                              n_repeat).compute_discretized(node_sequence_to_int, G);
                     } else {
                         // Break a unitig into multiple pieces
                         std::vector <std::vector<uint64_t>> m_sketches_per_thread(num_threads);
@@ -593,8 +562,7 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                                                                                             tuple_length,
                                                                                             m,
                                                                                             1,
-                                                                                            n_repeat).compute_discretized(
-                            my_node_sequence_to_int, lut_discretize, num_bits);
+                                                                                            n_repeat).compute_discretized(my_node_sequence_to_int, G);
                             m_sketches_per_thread[thread] = my_m_sketches;
                         }
                         // Merge it all
@@ -632,7 +600,7 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                             for (unsigned long mmer = kmer; mmer < kmer + stride * ratio; mmer += stride) {
                                 auto m_sketch = m_sketches[mmer];
                                 // go through the bits and compare with the random_direction
-                                for (uint32_t bit = 0; bit < (embed_dim * num_bits); ++bit, ++bit_index) {
+                                for (uint32_t bit = 0; bit < (embed_dim); ++bit, ++bit_index) {
                                     int8_t sketch_bit = ((m_sketch >> bit) & 1);
                                     int8_t random_bit = (random_direction[bit_index]);
                                     distance += sketch_bit ^ random_bit;
@@ -652,11 +620,11 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
 
                             // Build the long thing (kmer from concatted mmers)
                             for (unsigned long mmer = kmer; mmer < kmer + stride * ratio; mmer += stride) {
-                                auto m_sketch = m_sketches[mmer]; // each one of these is embed_dim * num_bits bits
-                                discretized_sketch <<= (embed_dim * num_bits);
+                                auto m_sketch = m_sketches[mmer]; // each one of these is embed_dim bits
+                                discretized_sketch <<= (embed_dim);
                                 discretized_sketch |= m_sketch;
                                 // go through the bits and compare with the random_direction
-                                for (uint32_t bit = 0; bit < (embed_dim * num_bits); ++bit, ++bit_index) {
+                                for (uint32_t bit = 0; bit < (embed_dim); ++bit, ++bit_index) {
                                     int8_t sketch_bit = ((m_sketch >> bit) & 1);
                                     int8_t random_bit = (random_direction[bit_index]);
                                     distance += sketch_bit ^ random_bit;
@@ -665,7 +633,7 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
 
                             if (distance == min_distance) {
                                 sketch_maps[n_repeat][discretized_sketch].push_back(v[kmer - (k - 1)]);
-                                map_backward[v[kmer]] = v[kmer - (k - 1)];
+//                                sketch_maps[n_repeat][discretized_sketch].push_back(v[kmer]);
                             }
                         }
                     }

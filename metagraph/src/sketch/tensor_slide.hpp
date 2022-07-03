@@ -116,14 +116,19 @@ class TensorSlide : public Tensor<seq_type> {
     }
 
 
-    uint8_t discretize(double x, std::vector<double> lut) {
-        if (x < lut.front()) {
-            return 0;
-        } else if (x > lut.back()) {
-            return lut.size();
+    uint64_t discretize(std::vector<double> x, std::vector<std::vector<double>> G) {
+        uint64_t ret = 0;
+        uint32_t n = G.size();
+        for(auto l = 0; l < n; ++l) {
+            double result = 0;
+            for(auto c = 0; c < n; ++c) {
+                result += G[l][c] * x[c];
+            }
+            ret <<= 1;
+            ret |= (uint8_t)(result >= 0.0);
         }
-        auto it = upper_bound(lut.begin(), lut.end(), x);
-        return it - lut.begin();
+
+        return ret;
     }
 
     /**
@@ -131,7 +136,7 @@ class TensorSlide : public Tensor<seq_type> {
      * A sketch is computed every #stride characters on substrings of length #window.
      * @return seq.size()/stride sketches of size #sketch_dim
      */
-    std::vector<uint64_t> compute_discretized(const std::vector<seq_type> &seq, std::vector<double> lut, uint32_t num_bits) {
+    std::vector<uint64_t> compute_discretized(const std::vector<seq_type> &seq, std::vector<std::vector<double>> G) {
         Timer timer("tensor_slide_sketch");
         std::vector<uint64_t> sketches((seq.size() - this->win_len) / this->stride + 1);
         if (seq.size() < this->subsequence_len) {
@@ -190,7 +195,7 @@ class TensorSlide : public Tensor<seq_type> {
             }
 
             if (i >= (win_len - 1) && (i + 1) % stride == 0) { // save a sketch every stride times
-                sketches[save_index++] = diff_discrete(T1[1].back(), T2[1].back(), lut, num_bits);
+                sketches[save_index++] = diff_discrete(T1[1].back(), T2[1].back(), G);
             }
         }
         return sketches;
@@ -210,14 +215,13 @@ class TensorSlide : public Tensor<seq_type> {
         }
         return result;
     }
-    uint64_t diff_discrete(const std::vector<double> &a, const std::vector<double> &b, std::vector<double> lut, uint8_t num_bits) {
+    uint64_t diff_discrete(const std::vector<double> &a, const std::vector<double> &b, std::vector<std::vector<double>> G) {
         assert(a.size() == b.size());
-        uint64_t result = 0;
-        for (uint32_t i = 0; i < a.size(); ++i) {
-            result <<= num_bits;
-            result |= (uint8_t)(discretize(a[i] - b[i], lut));
+        std::vector<double> result(a.size());
+        for (uint32_t i = 0; i < result.size(); ++i) {
+            result[i] = a[i] - b[i];
         }
-        return result;
+        return discretize(result, G);
     }
     uint32_t win_len;
     uint32_t stride;
