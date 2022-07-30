@@ -62,7 +62,8 @@ DBGAlignerConfig initialize_aligner_config(const Config &config) {
         .stride = config.stride,
         .m = config.m,
         .n_times_sketch = config.n_times_sketch,
-        .minimizer_window = config.minimizer_window
+        .minimizer_window = config.minimizer_window,
+        .num_neighbours = config.num_neighbours
     };
 
     c.set_scoring_matrix();
@@ -300,29 +301,23 @@ string mutate(string s, int mutation_rate, std::vector<char> alphabet) {
     uint32_t counter = 0;
     while (counter < s.size()) {
         if (rand() % 100 < mutation_rate) {
+            uint32_t chance = rand() % 100; // 25% chance of nothing, substitution, insertion, deletion
+            if (chance <= 33) {
+                // substitution
                 char new_c = alphabet[rand() % alphabet.size()];
                 while (new_c == s[counter]) {
                     new_c = alphabet[rand() % alphabet.size()];
                 }
                 mutated_string += new_c;
                 counter++;
-//            uint32_t chance = rand() % 100; // 25% chance of nothing, substitution, insertion, deletion
-//            if (chance <= 33) {
-//                // substitution
-//                char new_c = alphabet[rand() % alphabet.size()];
-//                while (new_c == s[counter]) {
-//                    new_c = alphabet[rand() % alphabet.size()];
-//                }
-//                mutated_string += new_c;
-//                counter++;
-//            } else if (chance > 33 && chance <= 66) {
-//                // deletion
-//                counter++;
-//            } else if (chance > 66) {
-//                // insertion
-//                char new_c = alphabet[rand() % alphabet.size()];
-//                mutated_string += new_c;
-//            }
+            } else if (chance > 33 && chance <= 66) {
+                // deletion
+                counter++;
+            } else if (chance > 66) {
+                // insertion
+                char new_c = alphabet[rand() % alphabet.size()];
+                mutated_string += new_c;
+            }
         } else {
             // nothing
             mutated_string += s[counter];
@@ -384,7 +379,6 @@ void generate_sequences(const DeBruijnGraph &graph,
             std::string mutated_spelling = mutate(reference_spelling, mutation_rate, alphabet);
             mutated_spellings.push_back(mutated_spelling);
             paths.push_back(nodes);
-
         }
 
     }
@@ -398,7 +392,7 @@ int align_to_graph(Config *config) {
     assert(config->infbase.size());
     // initialize graph
     auto graph = load_critical_dbg(config->infbase);
-    //graph->print(std::cout);
+//    graph->print(std::cout);
     
     fprintf(stderr, "Number of nodes: %llu\n", graph->max_index());
     // initialize alphabet
@@ -409,15 +403,18 @@ int align_to_graph(Config *config) {
     std::vector<std::string> reference_spellings;
     std::vector<std::string> mutated_spellings;
     std::vector<std::vector<uint64_t>> paths;
-    std::ofstream reference_out(config->output_path + "reference.fa");
-    std::ofstream mutated_out(config->output_path + "mutated.fa");
+    std::ofstream reference_out;
+    std::ofstream mutated_out;
     if (config->experiment) {
+        reference_out = std::ofstream(config->output_path + "reference.fa");
+        mutated_out = std::ofstream(config->output_path + "mutated.fa");
         if (config->min_path_size > graph->max_index()) {
             logger->error("min_path_size = {} is larger than graph->max_index() = {}",
                           config->min_path_size,
                           graph->max_index());
             exit(1);
         }
+        srand(0);
         generate_sequences(*graph,
                            config->min_path_size,
                            config->max_path_size,
@@ -436,11 +433,13 @@ int align_to_graph(Config *config) {
             mutated_out << mutated_spellings[i] << std::endl;
 
             // debug
+//            auto nodes = paths[i];
 //            std::cout << header << std::endl;
 //            std::cout << reference_spellings[i] << "\n" << mutated_spellings[i]<< std::endl;
-////            for(int x = 0; x < nodes.size(); ++x) {
-////                std::cout << reference_spelling.substr(x,graph.get_k()) << "--" << mutated_spelling.substr(x, graph.get_k()) << " " << nodes[x] << "\n";
-////            }
+//            for(int x = 0; x < nodes.size(); ++x) {
+//                std::cout << reference_spellings[i].substr(x,graph->get_k()) << "--" << mutated_spellings[i].substr(x, graph->get_k()) << " " << nodes[x] << "\n";
+//               std::cout << nodes[x] << " ";
+//            }
 //            std::cout << std::endl;
         }
         mutated_out.close();
@@ -512,24 +511,10 @@ int align_to_graph(Config *config) {
     // compute sketches
 
     if (config->seeder == "sketch") {
-        // Set G
-        std::default_random_engine generator(0);
-        std::normal_distribution<double> distribution(0.0,1.0);
-        std::vector<std::vector<double>> G(aligner_config.embed_dim, std::vector<double>(aligner_config.embed_dim));
-        for(auto i = 0; i < aligner_config.embed_dim; ++i) {
-            for(auto j = 0; j < aligner_config.embed_dim; ++j) {
-                G[i][j] = distribution(generator);
-            }
-        }
-        graph->G = G;
-
         graph->compute_sketches(aligner_config.kmer_word_size,
                                 aligner_config.embed_dim,
                                 aligner_config.tuple_length,
-                                aligner_config.stride,
-                                aligner_config.m,
                                 aligner_config.n_times_sketch,
-                                aligner_config.minimizer_window,
                                 get_num_threads());
     }
     std::unique_ptr<AnnotatedDBG> anno_dbg;
@@ -552,9 +537,11 @@ int align_to_graph(Config *config) {
 
         const uint64_t batch_size = config->query_batch_size_in_bytes;
 
+        double total_explored_nodes_per_kmer = 0.0;
+        double n_precision = 0;
+
         auto it = fasta_parser.begin();
         auto end = fasta_parser.end();
-
         size_t num_batches = 0;
         std::mutex stats_mutex;
         while (it != end) {
@@ -612,13 +599,24 @@ int align_to_graph(Config *config) {
                         *out << res;
                     }
                 );
+                std::lock_guard<std::mutex> lock1(stats_mutex);
+                {
+                    total_explored_nodes_per_kmer += aligner->my_explored_nodes_per_kmer;
+                    n_precision += aligner->my_aligned;
+                }
             });
         }
 
         thread_pool.join();
 
         float avg_time = data_reading_timer.elapsed() / config->num_query_seqs;
-        std::cout << "{\"time\":" << avg_time << "}";
+        double precision = 0.0;
+        if(n_precision > 0) {
+            precision = total_explored_nodes_per_kmer / n_precision;
+        }
+
+
+        std::cout << "{\"time\":" << avg_time << "," << "\"precision\":" << precision  << "}" << std::endl;
         logger->trace("File {} processed in {} sec, "
                       "num batches: {}, batch size: {} KB, "
                       "current mem usage: {} MB, total time {} sec",

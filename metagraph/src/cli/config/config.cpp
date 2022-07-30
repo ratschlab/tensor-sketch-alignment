@@ -322,6 +322,8 @@ Config::Config(int argc, char *argv[]) {
         } else if (!strcmp(argv[i], "--state")) {
             state = string_to_state(get_value(i++));
             // sketches
+        } else if (!strcmp(argv[i], "--num-neighbours")) {
+            num_neighbours = std::stoi(get_value(i++));
         } else if (!strcmp(argv[i], "--max-path-size")) {
             max_path_size = std::stoi(get_value(i++));
         } else if (!strcmp(argv[i], "--min-path-size")) {

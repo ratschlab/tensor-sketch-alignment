@@ -1,6 +1,6 @@
 ## CMake configuration file of gflags project
 ##
-## This CMakeLists.txt defines some gflags specific configuration variables
+## This _CMakeLists.txt defines some gflags specific configuration variables
 ## using the "gflags_define" utility macro. The default values of these variables
 ## can be overridden either on the CMake command-line using the -D option of
 ## the cmake command or in a super-project which includes the gflags source
@@ -9,7 +9,7 @@
 ## the non-cached variable GFLAGS_IS_SUBPROJECT has a value equivalent to FALSE,
 ## these configuration variables are added to the CMake cache so they can be
 ## edited in the CMake GUI. By default, GFLAGS_IS_SUBPROJECT is set to TRUE when
-## the CMAKE_SOURCE_DIR is not identical to the directory of this CMakeLists.txt
+## the CMAKE_SOURCE_DIR is not identical to the directory of this _CMakeLists.txt
 ## file, i.e., the top-level directory of the gflags project source tree.
 ##
 ## When this project is a subproject (GFLAGS_IS_SUBPROJECT is TRUE), the default
@@ -18,7 +18,7 @@
 ## library target for the "gflags_nothreads_static" library target. Targets which
 ## depend on the gflags library should link to the "gflags::gflags" library target.
 ##
-## Example CMakeLists.txt of user project which requires separate gflags installation:
+## Example _CMakeLists.txt of user project which requires separate gflags installation:
 ##   cmake_minimum_required(VERSION 2.8.12 FATAL_ERROR)
 ##
 ##   project(Foo)
@@ -28,7 +28,7 @@
 ##   add_executable(foo src/foo.cc)
 ##   target_link_libraries(foo gflags::gflags)
 ##
-## Example CMakeLists.txt of user project which requires separate single-threaded static gflags installation:
+## Example _CMakeLists.txt of user project which requires separate single-threaded static gflags installation:
 ##   cmake_minimum_required(VERSION 2.8.12 FATAL_ERROR)
 ##
 ##   project(Foo)
@@ -38,7 +38,7 @@
 ##   add_executable(foo src/foo.cc)
 ##   target_link_libraries(foo gflags::gflags)
 ##
-## Example CMakeLists.txt of super-project which contains gflags source tree:
+## Example _CMakeLists.txt of super-project which contains gflags source tree:
 ##   cmake_minimum_required(VERSION 2.8.12 FATAL_ERROR)
 ##
 ##   project(Foo)

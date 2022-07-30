@@ -16,6 +16,9 @@ include_directories(.)
 
 #set(CMAKE_BUILD_TYPE Debug)
 
+# FAISS
+include_directories(external_libraries/faiss)
+link_directories(external_libraries/faiss/build/faiss)
 # Google Flags Library
 add_subdirectory(${PROJECT_SOURCE_DIR}/src/third_party/gflags EXCLUDE_FROM_ALL)
 
@@ -112,14 +115,14 @@ add_subdirectory(external-libraries/jsoncpp)
 
 add_compile_options(
   -Wall -Wextra
-  -D_THREAD_SAFE -pthread -g -O0
+  -D_THREAD_SAFE -pthread -g -O3
   # -DDBGDEBUG -Wconversion -Wsign-conversion -Werror=shadow=compatible-local
 )
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(
     -Wno-exit-time-destructors
-    -Wno-deprecated-declarations -g -O0
+    -Wno-deprecated-declarations -g -O3
   )
 
   if (NOT CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
@@ -177,6 +180,28 @@ message(WARNING "Compiling without AVX instructions!")
 endif()
 
 #---------
+# FAISS
+#---------
+#option(FAISS_OPT_LEVEL "" "sse4")
+#option(FAISS_ENABLE_GPU "Enable support for GPU indexes." OFF)
+#option(FAISS_ENABLE_PYTHON "Build Python extension." OFF)
+#option(FAISS_ENABLE_C_API "Build C API." OFF)
+#
+#if(FAISS_ENABLE_GPU)
+#  set(CMAKE_CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER})
+#  enable_language(CUDA)
+#endif()
+#add_subdirectory(src/faiss/)
+#if(FAISS_ENABLE_GPU)
+#  add_subdirectory(src/faiss/gpu)
+#endif()
+#if(FAISS_ENABLE_PYTHON)
+#  add_subdirectory(src/faiss/python)
+#endif()
+#if(FAISS_ENABLE_C_API)
+#  add_subdirectory(src/faiss/c_api)
+#endif()
+#---------
 # Sketch
 #---------
 file(GLOB util_files "src/util/*.cpp")
@@ -224,14 +249,14 @@ endif()
 
 
 # Profile with gprof
-set(CMAKE_CXX_FLAGS_PROFILE "-pg -DNDEBUG -g -O0")
-set(CMAKE_EXE_LINKER_FLAGS_PROFILE "-pg -g -O0")
-set(CMAKE_SHARED_LINKER_FLAGS_PROFILE "-pg -g -O0")
+set(CMAKE_CXX_FLAGS_PROFILE "-pg -DNDEBUG -g -O3")
+set(CMAKE_EXE_LINKER_FLAGS_PROFILE "-pg -g -O3")
+set(CMAKE_SHARED_LINKER_FLAGS_PROFILE "-pg -g -O3")
 
 # Profile with gperftools
-set(CMAKE_CXX_FLAGS_GPROFILE "-fno-omit-frame-pointer -DNDEBUG -g -O0")
-set(CMAKE_EXE_LINKER_FLAGS_GPROFILE "-g -O0")
-set(CMAKE_SHARED_LINKER_FLAGS_GPROFILE "-g -O0")
+set(CMAKE_CXX_FLAGS_GPROFILE "-fno-omit-frame-pointer -DNDEBUG -g -O3")
+set(CMAKE_EXE_LINKER_FLAGS_GPROFILE "-g -O3")
+set(CMAKE_SHARED_LINKER_FLAGS_GPROFILE "-g -O3")
 
 set(PROFILER_LIBRARIES PROFILER_LIBRARIES-NOTFOUND)
 find_library(PROFILER_LIBRARIES
@@ -250,7 +275,7 @@ if(${CMAKE_BUILD_TYPE} MATCHES GPROFILE)
 endif()
 
 # Debug build type
-set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O3")
 
 # Link time optimization
 if(LINK_OPT)
@@ -264,9 +289,9 @@ if(LINK_OPT)
 endif()
 
 # Thread sanitizer build type
-set(CMAKE_CXX_FLAGS_THREADS "-g -fsanitize=thread -O0")
-set(CMAKE_EXE_LINKER_FLAGS_THREADS "-g -fsanitize=thread -O0")
-set(CMAKE_SHARED_LINKER_FLAGS_THREADS "-g -fsanitize=thread -O0")
+set(CMAKE_CXX_FLAGS_THREADS "-g -fsanitize=thread -O3")
+set(CMAKE_EXE_LINKER_FLAGS_THREADS "-g -fsanitize=thread -O3")
+set(CMAKE_SHARED_LINKER_FLAGS_THREADS "-g -fsanitize=thread -O3")
 
 link_directories(
   ${CMAKE_BINARY_DIR}/KMC
@@ -465,9 +490,9 @@ if(NOT CPPNOFS)
   endif()
 endif()
 
-target_link_libraries(metagraph-core ${METALIBS} sequence util sketch_lib)
-target_link_libraries(metagraph-cli PRIVATE metagraph-core sequence util sketch_lib)
-target_link_libraries(metagraph metagraph-core metagraph-cli sequence util sketch_lib)
+target_link_libraries(metagraph-core ${METALIBS} sequence util sketch_lib faiss lapack blas)
+target_link_libraries(metagraph-cli PRIVATE metagraph-core sequence util sketch_lib faiss lapack blas)
+target_link_libraries(metagraph metagraph-core metagraph-cli sequence util sketch_lib faiss lapack blas)
 
 add_custom_target(link_target ALL
   COMMAND ${CMAKE_COMMAND} -E

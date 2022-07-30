@@ -22,6 +22,12 @@
 #include "sketch/tensor_slide.hpp"
 #include <boost/functional/hash.hpp>
 #include <boost/multiprecision/cpp_int.hpp>
+#include <faiss/IndexFlat.h>
+#include <faiss/IndexHNSW.h>
+#include <faiss/MetaIndexes.h>
+#include <faiss/index_factory.h>
+#include <faiss/Index.h>
+using idx_t = faiss::Index::idx_t;
 
 namespace utils {
     std::string make_suffix(const std::string &str, const std::string &suffix);
@@ -163,19 +169,16 @@ class DeBruijnGraph : public SequenceGraph {
   public:
     enum Mode { BASIC = 0, CANONICAL, PRIMARY };
 
-    using key_type = boost::multiprecision::uint256_t;
+//    using key_type = boost::multiprecision::uint256_t;
+    using key_type = uint64_t;
     virtual void compute_sketches(uint64_t kmer_word_size,
                                   size_t embed_dim,
                                   size_t tuple_length,
-                                  size_t stride,
-                                  size_t m,
                                   uint32_t n_times_sketch,
-                                  uint32_t minimizer_window,
                                   uint32_t num_threads);
-    std::vector<std::vector<double>> G;
-    std::vector<std::unordered_map<key_type, std::vector<node_index>>> sketch_maps;
-    std::vector<std::vector<uint8_t>> random_directions;
-
+    mutable std::unordered_map<node_index, node_index> debugmap;
+    faiss::Index *index_;
+    faiss::IndexIDMap *index;
     // Returns a map from tmer to the node_index
     // node_index corresponds to the node where the tmer starts at
     // n is the number of tmers

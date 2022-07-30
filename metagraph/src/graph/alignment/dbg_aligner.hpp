@@ -44,6 +44,9 @@ class IDBGAligner {
 
     // Convenience method
     AlignmentResults align(std::string_view query) const;
+
+    mutable double my_explored_nodes_per_kmer = 0.0;
+    mutable double my_aligned = 0.0;
 };
 
 

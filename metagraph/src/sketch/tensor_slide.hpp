@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <vector>
+#include <functional>
 
 namespace ts {
 /**
@@ -73,8 +74,7 @@ class TensorSlide : public Tensor<seq_type> {
             for (uint32_t p = 1; p <= tup_len; p++) {
                 // q-p must be smaller than i, hence the min in the condition
                 for (uint32_t q = std::min(p + i, (uint32_t)tup_len); q >= p; q--) {
-//                    double z = (double)(q - p + 1) / std::min(i + 1, win_len + 1);
-                    double z = 1.0; // numerical instability
+                    double z = (double)(q - p + 1) / std::min(i + 1, win_len + 1);
                     auto r = hashes[q - 1][seq[i]];
                     bool s = signs[q - 1][seq[i]];
                     if (s) {
@@ -95,8 +95,7 @@ class TensorSlide : public Tensor<seq_type> {
                         bool s = signs[p - 1][seq[ws]];
                         uint32_t q = p + diff;
                         // this computes t/(w-t); in our case t (the tuple length) is diff+1
-//                        double z = (double)(diff + 1) / (win_len - diff);
-                        double z = 1.0; // numerical instability
+                        double z = (double)(diff + 1) / (win_len - diff);
                         if (s) {
                             this->shift_sum_inplace(T1[p][q], T1[p + 1][q], r, -z);
                             this->shift_sum_inplace(T2[p][q], T2[p + 1][q], r, -z);
@@ -119,16 +118,35 @@ class TensorSlide : public Tensor<seq_type> {
     uint64_t discretize(std::vector<double> x, std::vector<std::vector<double>> G) {
         uint64_t ret = 0;
         uint32_t n = G.size();
-        for(auto l = 0; l < n; ++l) {
-            double result = 0;
-            for(auto c = 0; c < n; ++c) {
-                result += G[l][c] * x[c];
+        uint32_t m = G[0].size();
+        // G is 128x20
+        // x is 20x1
+        // Gx is 128x1
+        std::vector<uint64_t> S(G.size() / 8);
+        std::vector<uint64_t> H(G.size());
+        for(uint32_t l = 0; l < n; ++l) {
+            double result = 0.0;
+            for(uint32_t c = 0; c < m; ++c) {
+                result += (G[l][c] * x[c]);
             }
-            ret <<= 1;
-            ret |= (uint8_t)(result >= 0.0);
+
+            H[l] = (result > 0);
+        }
+        // H is 128 in length
+        // I want packs of 8
+//            S[i] = (arr[0]<<8) + (arr[0]<<7)|(arr[1]<<6)|(arr[2]<<5)|(arr[3]<<4)|(arr[4]<<3)|(arr[5]<<2)|(arr[6]<<1)|arr[7]
+        uint32_t pack = 0;
+        for(uint32_t i = 0; i < G.size() - 8 + 1; i+=8) {
+            S[pack++] = (H[i]<<8) + (H[i]<<7)|(H[i+1]<<6)|(H[i+2]<<5)|(H[i+3]<<4)|(H[i+4]<<3)|(H[i+5]<<2)|(H[i+6]<<1)|H[i+7];
         }
 
-        return ret;
+        uint64_t sh = 0;
+        std::hash<uint64_t> hash;
+        std::hash<std::string> string_hash;
+        for(auto s: S) {
+            sh = hash(sh) ^ string_hash(std::to_string(s));
+        }
+        return sh;
     }
 
     /**
@@ -218,8 +236,13 @@ class TensorSlide : public Tensor<seq_type> {
     uint64_t diff_discrete(const std::vector<double> &a, const std::vector<double> &b, std::vector<std::vector<double>> G) {
         assert(a.size() == b.size());
         std::vector<double> result(a.size());
+        double normalization = 0.0;
         for (uint32_t i = 0; i < result.size(); ++i) {
             result[i] = a[i] - b[i];
+            normalization += result[i] * result[i];
+        }
+        for (uint32_t i = 0; i < result.size(); ++i) {
+            result[i] /= normalization;
         }
         return discretize(result, G);
     }

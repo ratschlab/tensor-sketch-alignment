@@ -28,9 +28,10 @@ class Config {
 //    kmer_type kmer_word_size = ts::int_pow<kmer_type>(ts::alphabet_size, 1);
     kmer_type kmer_word_size = 4;
     size_t embed_dim = 20;
-    size_t tuple_length = 3;
+    size_t tuple_length = 6;
     size_t m = 10;
     size_t stride = m / 2;
+    size_t num_neighbours = 10;
 
     // Sketcher params, the above are for the sketch itself
     uint32_t n_times_sketch = 5;

@@ -113,6 +113,7 @@ struct DBGAlignerConfig {
     size_t m = 10;
     uint32_t n_times_sketch = 10;
     uint32_t minimizer_window = 20;
+    size_t num_neighbours = 10;
 };
 
 } // namespace align

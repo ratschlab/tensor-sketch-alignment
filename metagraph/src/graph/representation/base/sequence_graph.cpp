@@ -21,6 +21,7 @@
 #include "sketch/tensor_embedding.hpp"
 #include "sketch/tensor_slide.hpp"
 #include <queue>
+
 namespace mtg {
 namespace graph {
 using namespace boost::multiprecision;
@@ -503,140 +504,44 @@ std::unordered_map<uint64_t, uint64_t> DeBruijnGraph::get_forward_tmers(node_ind
 void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                                      size_t embed_dim,
                                      size_t tuple_length,
-                                     size_t stride,
-                                     size_t m,
                                      uint32_t n_times_sketch,
-                                     uint32_t minimizer_window,
                                      uint32_t num_threads) {
-    sketch_maps = std::vector<std::unordered_map<key_type, std::vector<node_index>>>(n_times_sketch);
-    random_directions = std::vector<std::vector<uint8_t>>(n_times_sketch);
+    index_ = index_factory(embed_dim, "HNSW32,Flat", faiss::METRIC_L2);
+//    index_->hnsw.efSearch = 100;
+//    index_->hnsw.efConstruction = 40;
+//    index_->hnsw.search_bounded_queue = true;
+    index = new faiss::IndexIDMap(index_);
+
+    debugmap = std::unordered_map<node_index, node_index>();
     uint32_t k = get_k();
-    uint32_t ratio = std::ceil((double)(k - m + 1) / (double)(stride));
-
-//    std::cout << "Concatting: " << ratio << " windows of size " << m  << " with stride " << stride << std::endl;
-//    std::cout << "Total bits for discretized sketch: " << ratio * embed_dim << std::endl;
-
-    std::vector<uint8_t> random_direction(embed_dim * ratio);
-    key_type discretized_sketch = 0;
-    uint32_t delta = minimizer_window;
     for (uint32_t n_repeat = 0; n_repeat < n_times_sketch; n_repeat++) {
-        srand(n_repeat);
-        std::generate(random_direction.begin(), random_direction.end(), []() { return rand() % 2; });
-        random_directions[n_repeat] = random_direction;
         call_unitigs(
                 [&](const std::string &s, const std::vector <uint64_t> &v) {
-                    std::vector <uint64_t> m_sketches;
-                    if (v.size() < k - 1) {
-                        return;
+                    std::vector<uint8_t> node_to_int;
+                    for (unsigned char c: s) {
+                        node_to_int.push_back(ts::char2int(c));
                     }
-                    if (v.size() <= 1 || s.size() / num_threads <= m) {
-                        std::vector<uint8_t> node_sequence_to_int(s.size());
-                        for (uint32_t i = 0; i < s.size(); ++i) {
-                            node_sequence_to_int[i] = ts::char2int(s[i]);
+                    // RAM Used = sizeof(double) * embed_dim * num_nodes
+                    //          + sizeof(uint64_t) * num_nodes
+                    //
+                    uint32_t unitig_length = s.size();
+                    idx_t n = v.size() - k + 1;
+                    float* sketch_arr = new float[embed_dim * static_cast<uint32_t>(std::ceil((double)n / (double)k))];
+                    idx_t* positions = new idx_t[static_cast<uint32_t>(std::ceil((double)n / (double)k))];
+                    uint32_t pos = 0;
+
+                    for(uint32_t kmer_start = k; kmer_start < unitig_length - k + 1; kmer_start += k) {
+                        std::vector<uint8_t> kmer_string(node_to_int.begin() + kmer_start, node_to_int.begin() + kmer_start + k);
+                        auto sketch = ts::Tensor<uint8_t>(kmer_word_size, embed_dim, tuple_length, n_repeat).compute(kmer_string);
+
+                        positions[pos] = v[kmer_start - (k - 1)];
+//                        positions[pos] = v[kmer_start];
+                        for(uint32_t j = 0; j < embed_dim; ++j) {
+                            sketch_arr[pos * embed_dim + j] = sketch[j];
                         }
-
-                        // Sketch
-                        m_sketches = ts::TensorSlide<uint8_t>(kmer_word_size,
-                                                              embed_dim,
-                                                              tuple_length,
-                                                              m,
-                                                              1,
-                                                              n_repeat).compute_discretized(node_sequence_to_int, G);
-                    } else {
-                        // Break a unitig into multiple pieces
-                        std::vector <std::vector<uint64_t>> m_sketches_per_thread(num_threads);
-                        #pragma omp parallel for num_threads(num_threads)
-                        for (uint32_t thread = 0; thread < num_threads; ++thread) {
-                            uint32_t start = thread * (s.size() / num_threads) + (thread > 0) * (-(m - 1));
-                            uint32_t end = (thread + 1) * (s.size() / num_threads) +
-                                           (thread == num_threads - 1) * (s.size() % num_threads);
-
-                            std::string my_piece_of_s = s.substr(start, end - start);
-                            std::vector <uint8_t> my_node_sequence_to_int(my_piece_of_s.size());
-                            for (uint32_t i = 0; i < my_piece_of_s.size(); ++i) {
-                                my_node_sequence_to_int[i] = ts::char2int(my_piece_of_s[i]);
-                            }
-
-                            std::vector <uint64_t> my_m_sketches = ts::TensorSlide<uint8_t>(kmer_word_size,
-                                                                                            embed_dim,
-                                                                                            tuple_length,
-                                                                                            m,
-                                                                                            1,
-                                                                                            n_repeat).compute_discretized(my_node_sequence_to_int, G);
-                            m_sketches_per_thread[thread] = my_m_sketches;
-                        }
-                        // Merge it all
-                        m_sketches.reserve(s.size() - m + 1);
-                        for (uint32_t thread = 0; thread < num_threads; ++thread) {
-                            m_sketches.insert(std::end(m_sketches), std::begin(m_sketches_per_thread[thread]),
-                                              std::end(m_sketches_per_thread[thread]));
-                        }
-
+                        pos++;
                     }
-//                    for(int i = 0; i < sanity_sketches.size(); ++i) {
-//                        if (sanity_sketches[i] != m_sketches[i]) {
-//                            std::cout << " here: " << i <<": " << sanity_sketches[i] << " != " << m_sketches[i] << std::endl;
-//                        }
-//                    }
-                    // Compute minimizers
-                    // Take each kmer in [0, delta], [delta, 2delta] etc
-                    // Instead of 0, we take [k - 1, delta], [delta, 2delta], [3delta, v.size()] etc
-                    uint32_t num_delta_windows = (v.size() - (k - 1)) / delta;
-                    for (uint32_t delta_window = 0; delta_window <= num_delta_windows; ++delta_window) {
-//                        uint32_t start_kmer = (delta_window == 0) ? (k - 1) : delta_window * delta;
-//                        uint32_t end_kmer = (delta_window == num_delta_windows - 1) ? v.size() : (delta_window + 1) *
-//                                                                                                 delta;
-                        uint32_t start_kmer = delta_window * delta + (k - 1);
-                        uint32_t end_kmer = std::min((delta_window + 1) * delta + (k - 1), (uint32_t)v.size());
-//                        std::cout << num_delta_windows << " " << delta_window << " (" << start_kmer << ", " << end_kmer << ") "<<std::endl;
-                        // To save the minimizer
-                        uint32_t min_distance = 1e8;
-
-                        // Get argmin (distances in this window)
-                        for (uint32_t kmer = start_kmer; kmer < end_kmer; ++kmer) {
-                            int64_t distance = 0;
-                            uint32_t bit_index = 0;
-                            // Build the long thing (kmer from concatted mmers)
-                            for (unsigned long mmer = kmer; mmer < kmer + stride * ratio; mmer += stride) {
-                                auto m_sketch = m_sketches[mmer];
-                                // go through the bits and compare with the random_direction
-                                for (uint32_t bit = 0; bit < (embed_dim); ++bit, ++bit_index) {
-                                    int8_t sketch_bit = ((m_sketch >> bit) & 1);
-                                    int8_t random_bit = (random_direction[bit_index]);
-                                    distance += sketch_bit ^ random_bit;
-                                }
-                            }
-                            // Now I have the sketch and distance, check if minimal
-                            if (distance < min_distance) {
-                                min_distance = distance;
-                            }
-                        }
-
-                        // Collect minimizers
-                        for (uint32_t kmer = start_kmer; kmer < end_kmer; ++kmer) {
-                            int64_t distance = 0;
-                            discretized_sketch = 0;
-                            uint32_t bit_index = 0;
-
-                            // Build the long thing (kmer from concatted mmers)
-                            for (unsigned long mmer = kmer; mmer < kmer + stride * ratio; mmer += stride) {
-                                auto m_sketch = m_sketches[mmer]; // each one of these is embed_dim bits
-                                discretized_sketch <<= (embed_dim);
-                                discretized_sketch |= m_sketch;
-                                // go through the bits and compare with the random_direction
-                                for (uint32_t bit = 0; bit < (embed_dim); ++bit, ++bit_index) {
-                                    int8_t sketch_bit = ((m_sketch >> bit) & 1);
-                                    int8_t random_bit = (random_direction[bit_index]);
-                                    distance += sketch_bit ^ random_bit;
-                                }
-                            }
-
-                            if (distance == min_distance) {
-                                sketch_maps[n_repeat][discretized_sketch].push_back(v[kmer - (k - 1)]);
-//                                sketch_maps[n_repeat][discretized_sketch].push_back(v[kmer]);
-                            }
-                        }
-                    }
+                    index->add_with_ids(pos, sketch_arr, positions);
                 });
     }
 }

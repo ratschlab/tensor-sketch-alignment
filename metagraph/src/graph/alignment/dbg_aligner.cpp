@@ -315,6 +315,12 @@ void DBGAligner<Seeder, Extender, AlignmentCompare>
         double explored_nodes_d = num_explored_nodes;
         double explored_nodes_per_kmer =
             explored_nodes_d / (query.size() - graph_.get_k() + 1);
+        my_explored_nodes_per_kmer += explored_nodes_per_kmer;
+
+        if (best_score > -1000) {
+            my_aligned++;
+        }
+
         logger->trace("{}\tlength: {}\tcovered: {}\tbest score: {}\tseeds: {}\t"
                 "extensions: {}\texplored nodes: {}\texplored nodes/extension: {:.2f}\t"
                 "explored nodes/k-mer: {:.2f}\tlabels: {}\texplored nodes/k-mer/label: {:.2f}",
