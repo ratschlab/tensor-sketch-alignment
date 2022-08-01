@@ -177,8 +177,9 @@ class DeBruijnGraph : public SequenceGraph {
                                   uint32_t n_times_sketch,
                                   uint32_t num_threads);
     mutable std::unordered_map<node_index, node_index> debugmap;
-    faiss::Index *index_;
-    faiss::IndexIDMap *index;
+//    faiss::Index *index_;
+    faiss::IndexHNSW *index_;
+    faiss::IndexIDMap2 *index;
     // Returns a map from tmer to the node_index
     // node_index corresponds to the node where the tmer starts at
     // n is the number of tmers

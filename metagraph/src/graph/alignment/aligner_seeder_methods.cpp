@@ -12,10 +12,20 @@ namespace align {
 
 using mtg::common::logger;
 using namespace boost::multiprecision;
+typedef std::pair<float, Seed> pi;
 
 typedef Alignment::score_t score_t;
 //using key_type = boost::multiprecision::uint256_t;
 using key_type = uint64_t;
+struct myComp {
+    constexpr bool operator()(
+            pi const& a,
+            pi const& b)
+    const noexcept
+    {
+        return a.first < b.first;
+    }
+};
 
 ExactSeeder::ExactSeeder(const DeBruijnGraph &graph,
                          std::string_view query,
@@ -96,44 +106,85 @@ std::vector<Seed> SketchSeeder::get_seeds() const {
     for (unsigned char c: query_) {
         query_to_int.push_back(ts::char2int(c));
     }
+    uint32_t num_neighs = config_.num_neighbours;
     std::vector<Seed> seeds;
-    seeds.reserve(query_.size() - k);
+    seeds.reserve(num_neighs*(query_.size() - k));
     if (config_.max_seed_length < k)
         return seeds;
 
+    uint32_t nq = query_.size() - k + 1;
+    uint32_t num_regions = (query_.size() - k + 1) / k;
+    double stride_ratio = 0.1;
+    double window_ratio = 0.2;
+    uint32_t stride = static_cast<uint32_t>(stride_ratio * (double)k);
+    uint32_t window = static_cast<uint32_t>(window_ratio * (double)k);
+    uint32_t num_windows = static_cast<uint32_t>(std::ceil((double)(k - window + 1) / (double)stride));
+
+
     uint32_t embed_dim = config_.embed_dim;
     for (uint32_t n_repeat = 0; n_repeat < config_.n_times_sketch; n_repeat++) {
-        uint32_t num_neighs = config_.num_neighbours;
-        uint32_t nq = query_.size() - k + 1;
+        std::priority_queue<pi, std::vector<pi>, myComp> pq;
         idx_t* I = new idx_t[num_neighs  * nq];
         float* D = new float[num_neighs * nq];
-        float* xq = new float[embed_dim * nq];
+        float* xq = new float[embed_dim * num_windows * nq];
 
         uint32_t pos = 0;
         for(uint32_t kmer_start = 0; kmer_start < query_.size() - k + 1; ++kmer_start) {
             std::vector<uint8_t> kmer_string(query_to_int.begin() + kmer_start, query_to_int.begin() + kmer_start + k);
-            auto sketch = ts::Tensor<uint8_t>(config_.kmer_word_size, config_.embed_dim, config_.tuple_length, n_repeat).compute(kmer_string);
-            for(uint32_t j = 0; j < embed_dim; ++j) {
-                xq[pos * embed_dim + j] = sketch[j];
+//            std::cout << kmer_start << " " << query_.substr(kmer_start, k) << std::endl;
+            // Get full sketch
+            std::vector<double> full_sketch;
+            full_sketch.reserve(embed_dim * num_windows);
+
+            for(uint32_t mmer_start = 0; mmer_start < k - window + 1; mmer_start += stride) {
+                std::vector<uint8_t> mmer_string(kmer_string.begin() + mmer_start, kmer_string.begin() + mmer_start + window);
+                std::vector<double> sketch = ts::Tensor<uint8_t>(config_.kmer_word_size, config_.embed_dim, config_.tuple_length, n_repeat).compute(mmer_string);
+                full_sketch.insert(full_sketch.end(), sketch.begin(), sketch.end());
+            }
+            for(uint32_t j = 0; j < embed_dim * num_windows; ++j) {
+                xq[pos * embed_dim * num_windows + j] = full_sketch[j];
             }
             pos++;
         }
         graph_.index->search(nq, xq, num_neighs, D, I);
 
+
+        Seed best_seed;
+        float best_distance = std::numeric_limits<float>::max();
         for(uint32_t i = 0; i < nq; ++i) {
             for(uint32_t j = 0; j < num_neighs; ++j) {
+
                 node_index near_neighbour = (node_index)(I[i * num_neighs + j]);
-//                std::cout << near_neighbour << " ";
+                double near_neighbour_distance = D[i * num_neighs + j];
+                //                std::cout << near_neighbour << " ";
 //                std::cout << near_neighbour << " " << graph_.debugmap[near_neighbour] << std::endl;
-//                std::cout << near_neighbour << std::endl;
+//                std::cout << near_neighbour << " distance  " << near_neighbour_distance << std::endl;
 //                std::cout << query_.substr(i, k) << std::endl;
 //                std::cout << graph_.get_node_sequence(graph_.debugmap[near_neighbour]) << std::endl;
 //                std::cout << graph_.get_node_sequence(near_neighbour) << " " << (query_.substr(i, k) == graph_.get_node_sequence(near_neighbour)) << std::endl;
+//                if(D[i * num_neighs + j] < best_distance) {
+//                    best_distance = D[i * num_neighs + j];
+//                    best_seed = Seed(query_.substr(i, k),
+//                            std::vector<node_index>{ near_neighbour },
+//                            orientation_, 0, i, query_.size() - (k + i));
+//                }
                 seeds.emplace_back(query_.substr(i, k),
                                    std::vector<node_index>{ near_neighbour },
                                    orientation_, 0, i, query_.size() - (k + i));
+//                pq.push(std::make_pair(near_neighbour_distance,
+//                                       Seed(query_.substr(i, k), std::vector<node_index>{ near_neighbour }, orientation_, 0, i, query_.size() - (k + i))));
+//                if (pq.size() > num_neighs) {
+//                    pq.pop();
+//                }
             }
-
+//            if ((i + 1) % 1 == 0 || i == nq - 1) {
+////                best_distance = std::numeric_limits<float>::max();
+////                seeds.emplace_back(best_seed);
+//                while(!pq.empty()) {
+//                    seeds.emplace_back(pq.top().second);
+//                    pq.pop();
+//                }
+//            }
 //            std::cout << std::endl;
         }
     }

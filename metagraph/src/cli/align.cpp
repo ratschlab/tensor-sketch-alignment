@@ -438,7 +438,6 @@ int align_to_graph(Config *config) {
 //            std::cout << reference_spellings[i] << "\n" << mutated_spellings[i]<< std::endl;
 //            for(int x = 0; x < nodes.size(); ++x) {
 //                std::cout << reference_spellings[i].substr(x,graph->get_k()) << "--" << mutated_spellings[i].substr(x, graph->get_k()) << " " << nodes[x] << "\n";
-//               std::cout << nodes[x] << " ";
 //            }
 //            std::cout << std::endl;
         }

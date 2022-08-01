@@ -63,8 +63,8 @@ def get_gt_scores(references, mutations):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--max-k', type=int, default=15)
-    parser.add_argument('--seeder', type=int)
-    parser.add_argument('--embed-dim', type=int, default=30)
+    parser.add_argument('--seeder', type=int, required=True)
+    parser.add_argument('--embed-dim', type=int, default=13)
     parser.add_argument('--m', type=int, default=20)
     parser.add_argument('--stride', type=int, default=20)
     parser.add_argument('--n-times-sketch', type=int, default=1)
@@ -83,10 +83,10 @@ if __name__ == '__main__':
 
     if not os.path.exists("runs"):
         os.mkdir("runs")
-    k = 30
+    k = 80
 
-    args.min_path_size = 100 - k + 1
-    args.max_path_size = 100 - k + 2
+    args.min_path_size = 2*k - k + 10
+    args.max_path_size = 2*k - k + 11
 
     config = {
         'embed-dim': args.embed_dim,

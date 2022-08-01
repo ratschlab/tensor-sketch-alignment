@@ -506,43 +506,83 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                                      size_t tuple_length,
                                      uint32_t n_times_sketch,
                                      uint32_t num_threads) {
-    index_ = index_factory(embed_dim, "HNSW32,Flat", faiss::METRIC_L2);
-//    index_->hnsw.efSearch = 100;
-//    index_->hnsw.efConstruction = 40;
-//    index_->hnsw.search_bounded_queue = true;
-    index = new faiss::IndexIDMap(index_);
+    uint32_t k = get_k();
+    uint32_t total_ram = sizeof(double) * (embed_dim + 1) * static_cast<uint32_t>(std::ceil((double)num_nodes() / (double)get_k()));
+
+    double stride_ratio = 0.1;
+    double window_ratio = 0.2;
+    uint32_t stride = static_cast<uint32_t>(stride_ratio * (double)k);
+    uint32_t window = static_cast<uint32_t>(window_ratio * (double)k);
+    uint32_t num_windows = static_cast<uint32_t>(std::ceil((double)(k - window + 1) / (double)stride));
+
+    index_ = (faiss::IndexHNSW*)index_factory(embed_dim * num_windows, "HNSW32,Flat", faiss::METRIC_L2);
+    index_->hnsw.efSearch = 128;
+    index_->hnsw.efConstruction = 40;
+    index_->hnsw.search_bounded_queue = true;
+    index = new faiss::IndexIDMap2(index_);
+//    tuple_size = 2              #@param {type:"slider",min:1,max:10,step:1}
+//    sketch_dim = 100            #@param {type:"slider",min:10,max:1000,step:10}
+//
+//    stride_ratio = 0.1
+//    window_ratio = 0.2
+
 
     debugmap = std::unordered_map<node_index, node_index>();
-    uint32_t k = get_k();
     for (uint32_t n_repeat = 0; n_repeat < n_times_sketch; n_repeat++) {
         call_unitigs(
-                [&](const std::string &s, const std::vector <uint64_t> &v) {
-                    std::vector<uint8_t> node_to_int;
-                    for (unsigned char c: s) {
-                        node_to_int.push_back(ts::char2int(c));
-                    }
-                    // RAM Used = sizeof(double) * embed_dim * num_nodes
-                    //          + sizeof(uint64_t) * num_nodes
-                    //
-                    uint32_t unitig_length = s.size();
-                    idx_t n = v.size() - k + 1;
-                    float* sketch_arr = new float[embed_dim * static_cast<uint32_t>(std::ceil((double)n / (double)k))];
-                    idx_t* positions = new idx_t[static_cast<uint32_t>(std::ceil((double)n / (double)k))];
-                    uint32_t pos = 0;
+            [&](const std::string &s, const std::vector <uint64_t> &v) {
+                std::vector<uint8_t> node_to_int;
+                for (unsigned char c: s) {
+                    node_to_int.push_back(ts::char2int(c));
+                }
+                // RAM Used = sizeof(double) * embed_dim * num_nodes / k
+                //          + sizeof(uint64_t) * num_nodes / k
+                // 64 * (embed_dim * num_nodes + num_nodes) = 64 * (embed_dim + 1)  * num_nodes / k
 
-                    for(uint32_t kmer_start = k; kmer_start < unitig_length - k + 1; kmer_start += k) {
-                        std::vector<uint8_t> kmer_string(node_to_int.begin() + kmer_start, node_to_int.begin() + kmer_start + k);
-                        auto sketch = ts::Tensor<uint8_t>(kmer_word_size, embed_dim, tuple_length, n_repeat).compute(kmer_string);
+                uint32_t current_ram_usage = 0;
 
-                        positions[pos] = v[kmer_start - (k - 1)];
-//                        positions[pos] = v[kmer_start];
-                        for(uint32_t j = 0; j < embed_dim; ++j) {
-                            sketch_arr[pos * embed_dim + j] = sketch[j];
-                        }
-                        pos++;
+                uint32_t unitig_length = s.size();
+                idx_t n = s.size() - k + 1;
+                float* sketch_arr = new float[embed_dim * num_windows  * static_cast<uint32_t>(std::ceil((double)n / (double)k))];
+                idx_t* positions = new idx_t[static_cast<uint32_t>(std::ceil((double)n / (double)k))];
+                uint32_t pos = 0;
+//                std::cout << "Initial kmer: " << get_node_sequence(v[0]) << std::endl;
+                for(uint32_t kmer_start = k; kmer_start < unitig_length - k + 1; kmer_start += k) {
+//                    std::cout << "Kmer: " << kmer_start << " --  " << get_node_sequence(v[kmer_start]) << std::endl;
+//                    std::cout << v[kmer_start] << " " << v[kmer_start - (k - 1)] << std::endl;
+                    // Get kmer
+                    std::vector<uint8_t> kmer_string(node_to_int.begin() + kmer_start, node_to_int.begin() + kmer_start + k);
+
+                    // Get full sketch
+                    std::vector<double> full_sketch;
+                    full_sketch.reserve(embed_dim * num_windows);
+
+                    for(uint32_t mmer_start = 0; mmer_start < k - window + 1; mmer_start += stride) {
+                        std::vector<uint8_t> mmer_string(kmer_string.begin() + mmer_start, kmer_string.begin() + mmer_start + window);
+                        std::vector<double> sketch = ts::Tensor<uint8_t>(kmer_word_size, embed_dim, tuple_length, n_repeat).compute(mmer_string);
+                        full_sketch.insert(full_sketch.end(), sketch.begin(), sketch.end());
                     }
-                    index->add_with_ids(pos, sketch_arr, positions);
-                });
+
+                    positions[pos] = v[kmer_start - (k - 1)];
+//                    positions[pos] = v[kmer_start];
+//                    std::cout << "Adding: " << v[kmer_start] << " " <<get_node_sequence(v[kmer_start]) << " at: " << pos << std::endl;
+//                    debugmap[v[kmer_start - (k - 1)]] = v[kmer_start];
+                    for(uint32_t j = 0; j < embed_dim * num_windows; ++j) {
+                        sketch_arr[pos * embed_dim * num_windows + j] = full_sketch[j];
+                    }
+                    pos++;
+                    current_ram_usage += sizeof(double) * (embed_dim + 1);
+                }
+                index->add_with_ids(pos, sketch_arr, positions);
+
+                // debug
+//                float* result;
+//                index->index->reconstruct(71152, result);
+//
+//                for(int q = 0; q < embed_dim * num_windows; ++q)
+//                    std::cout << result[q] << " ";
+//                std::cout << std::endl;
+            });
     }
 }
 
