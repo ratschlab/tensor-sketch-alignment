@@ -20,9 +20,11 @@
 #include "sketch/tensor_block.hpp"
 #include "sketch/tensor_embedding.hpp"
 #include "sketch/tensor_slide.hpp"
+#include <queue>
+
 namespace mtg {
 namespace graph {
-
+using namespace boost::multiprecision;
 typedef DeBruijnGraph::node_index node_index;
 
 static const uint64_t kBlockSize = 1 << 14;
@@ -456,59 +458,138 @@ void DeBruijnGraph
     });
 }
 
+std::unordered_map<uint64_t, uint64_t> DeBruijnGraph::get_forward_tmers(node_index start, uint32_t t, uint32_t n) const {
+    std::unordered_map<uint64_t, uint64_t> output;
+    output.reserve(n);
+    // TODO: Fix this nasty implementation
+    uint32_t kmer_stream = 0;
+    uint32_t cleanup = pow(2, 2 * t) - 1;
+    node_index node = start;
+
+    // I am k-1 nodes back
+    // ASCZXCZXC - node
+    // ASCZXCZXC - seed
+
+    // QQQQQQASCZXCZXC - node
+    // DZXCZXDDD
+    //         DZXCZXDDD
+    // Q = k - 1 nodes back
+    // QQQQQQQQASCZXCZXC
+    // ^ start
+    // ASCZXCZXC - seed
+
+    // Go one back
+    adjacent_incoming_nodes(node, [&](node_index back_node){
+        node = back_node;
+    });
+
+    // Go k back
+//    for (uint32_t x = 0; x < get_k(); ++x) {
+//        adjacent_incoming_nodes(node, [&](node_index back_node){
+//            node = back_node;
+//        });
+//    }
+    // QQQQQQQQQASCZXCZXC
+    // ASCZXCZXC - seed
+
+    char c;
+    uint32_t delta = 0;
+    for(uint32_t i = 0; i < n; ++i) { call_outgoing_kmers(node, [&](node_index next, char next_char){ node = next; c = next_char; }); kmer_stream <<= 2; kmer_stream |= ts::char2int(c); kmer_stream &= cleanup; if (i >= t - 1) {
+            output[kmer_stream] = delta++;
+        }
+    }
+
+    return output;
+}
 void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                                      size_t embed_dim,
                                      size_t tuple_length,
-                                     size_t m_stride,
-                                     uint32_t n_times_sketch) {
-    sketch_maps = std::vector<std::unordered_map<boost::multiprecision::uint256_t, std::vector<node_index>>>(n_times_sketch);
-    map_backward = std::unordered_map<node_index, node_index>();
-    call_sequences([&](const std::string& s, const std::vector<node_index>& v) {
-        std::vector<uint8_t> node_sequence_to_int;
-        for (unsigned char c: s) {
-            node_sequence_to_int.push_back(ts::char2int(c));
-        }
+                                     uint32_t n_times_sketch,
+                                     uint32_t num_threads) {
+    uint32_t k = get_k();
+    uint32_t total_ram = sizeof(double) * (embed_dim + 1) * static_cast<uint32_t>(std::ceil((double)num_nodes() / (double)get_k()));
+
+    double stride_ratio = 0.1;
+    double window_ratio = 0.2;
+    uint32_t stride = static_cast<uint32_t>(stride_ratio * (double)k);
+    uint32_t window = static_cast<uint32_t>(window_ratio * (double)k);
+    uint32_t num_windows = static_cast<uint32_t>(std::ceil((double)(k - window + 1) / (double)stride));
+    /* quantizer = (faiss::IndexHNSWFlat*)index_factory(embed_dim * num_windows, "HNSW32,Flat", faiss::METRIC_L2); */
+    /* index_ = index_factory(embed_dim * num_windows, "HNSW32,SQ8", faiss::METRIC_L2); */
+    index_ = (faiss::IndexHNSWSQ*)index_factory(embed_dim * num_windows, "HNSW32,SQfp16", faiss::METRIC_L2);
+    index_->hnsw.efSearch = 16;
+    index_->hnsw.efConstruction = 800;
+    index_->hnsw.search_bounded_queue = true;
+    index = new faiss::IndexIDMap2(index_);
+    /* uint32_t nbits = num_nodes() / k / 39 - 2; */
+    /* index = new faiss::IndexIVFFlat(quantizer, embed_dim * num_windows, nbits); */
+    /* index->nprobe = 64; */
+
+//    tuple_size = 2              #@param {type:"slider",min:1,max:10,step:1}
+//    sketch_dim = 100            #@param {type:"slider",min:10,max:1000,step:10}
+//
+//    stride_ratio = 0.1
+//    window_ratio = 0.2
 
 
-        // Compute sketches
-        int n_nodes = v.size();
-        // Compute sketches for mmers instead of kmers then concat
-        int ratio = 5;
-        int m = (m_stride * get_k()) / ratio;
-
-//        #pragma omp parallel for num_threads(get_num_threads())
-        for (int n_repeat = 0; n_repeat < n_times_sketch; n_repeat++) {
-            ts::TensorSlide<uint8_t> tensor = ts::TensorSlide<uint8_t>(kmer_word_size,
-                                                                       embed_dim,
-                                                                       tuple_length,
-                                                                       m,
-                                                                       1,
-                                                                       n_repeat);
-
-            std::vector<std::vector<double>> m_sketches = tensor.compute(node_sequence_to_int);
-            // Each m_sketch is up to 8 bits(embed_dim size), need to discretize
-
-            for (int kmer = get_k() - 1; kmer < n_nodes; ++kmer) {
-                // For each kmer, we concat (ratio - 1) mmers
-                // So for kmer i, we concat mmers i:i + (ratio - 1)
-                boost::multiprecision::uint256_t discretized_sketch = 0;
-                int bitset_pos = 0;
-                for(int mmer = kmer; mmer < kmer + (ratio - 1) * m_stride; mmer += m_stride) {
-                    // set bits
-                    auto m_sketch = m_sketches[mmer];
-                    for(int i = 0; i < embed_dim; ++i) {
-                        discretized_sketch <<= 1;
-                        discretized_sketch |= std::signbit(m_sketch[i]);
-                    }
-                    bitset_pos+=embed_dim;
+    debugmap = std::unordered_map<node_index, node_index>();
+    for (uint32_t n_repeat = 0; n_repeat < n_times_sketch; n_repeat++) {
+        call_unitigs(
+            [&](const std::string &s, const std::vector <uint64_t> &v) {
+                std::vector<uint8_t> node_to_int;
+                for (unsigned char c: s) {
+                    node_to_int.push_back(ts::char2int(c));
                 }
+                // RAM Used = sizeof(double) * embed_dim * num_nodes / k
+                //          + sizeof(uint64_t) * num_nodes / k
+                // 64 * (embed_dim * num_nodes + num_nodes) = 64 * (embed_dim + 1)  * num_nodes / k
 
-                // Here, go back from v[kmer] k-1 steps
-                sketch_maps[n_repeat][discretized_sketch].emplace_back(v[kmer - (get_k() - 1)]); // map back
-                map_backward[v[kmer]] = v[kmer - (get_k() - 1)];
-            }
-        }
-    });
+                uint32_t current_ram_usage = 0;
+
+                uint32_t unitig_length = s.size();
+                idx_t n = s.size() - k + 1;
+                float* sketch_arr = new float[embed_dim * num_windows  * static_cast<uint32_t>(std::ceil((double)n / (double)k))];
+                idx_t* positions = new idx_t[static_cast<uint32_t>(std::ceil((double)n / (double)k))];
+                uint32_t pos = 0;
+//                std::cout << "Initial kmer: " << get_node_sequence(v[0]) << std::endl;
+                for(uint32_t kmer_start = k; kmer_start < unitig_length - k + 1; kmer_start += k) {
+//                    std::cout << "Kmer: " << kmer_start << " --  " << get_node_sequence(v[kmer_start]) << std::endl;
+//                    std::cout << v[kmer_start] << " " << v[kmer_start - (k - 1)] << std::endl;
+                    // Get kmer
+                    std::vector<uint8_t> kmer_string(node_to_int.begin() + kmer_start, node_to_int.begin() + kmer_start + k);
+
+                    // Get full sketch
+                    std::vector<double> full_sketch;
+                    full_sketch.reserve(embed_dim * num_windows);
+
+                    for(uint32_t mmer_start = 0; mmer_start < k - window + 1; mmer_start += stride) {
+                        std::vector<uint8_t> mmer_string(kmer_string.begin() + mmer_start, kmer_string.begin() + mmer_start + window);
+                        std::vector<double> sketch = ts::Tensor<uint8_t>(kmer_word_size, embed_dim, tuple_length, n_repeat).compute(mmer_string);
+                        full_sketch.insert(full_sketch.end(), sketch.begin(), sketch.end());
+                    }
+
+                    positions[pos] = v[kmer_start - (k - 1)];
+//                    positions[pos] = v[kmer_start];
+//                    std::cout << "Adding: " << v[kmer_start] << " " <<get_node_sequence(v[kmer_start]) << " at: " << pos << std::endl;
+//                    debugmap[v[kmer_start - (k - 1)]] = v[kmer_start];
+                    for(uint32_t j = 0; j < embed_dim * num_windows; ++j) {
+                        sketch_arr[pos * embed_dim * num_windows + j] = full_sketch[j];
+                    }
+                    pos++;
+                    current_ram_usage += sizeof(double) * (embed_dim + 1);
+                }
+                index->train(pos, sketch_arr);
+                index->add_with_ids(pos, sketch_arr, positions);
+
+                // debug
+//                float* result;
+//                index->index->reconstruct(71152, result);
+//
+//                for(int q = 0; q < embed_dim * num_windows; ++q)
+//                    std::cout << result[q] << " ";
+//                std::cout << std::endl;
+            });
+    }
 }
 
 void DeBruijnGraph::print(std::ostream &out) const {

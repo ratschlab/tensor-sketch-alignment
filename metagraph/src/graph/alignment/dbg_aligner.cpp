@@ -247,9 +247,6 @@ void DBGAligner<Seeder, Extender, AlignmentCompare>
         const auto &[header, query] = seq_batch[i];
         auto &[seeder, seeder_rc] = seeders[i];
 
-        // Saving stats for recall
-        forward_query_seeds.insert({header, (*seeder).get_seeds()});
-        // rc_query_seeds.insert({header, (*seeder_rc).get_seeds()});
 
         AlignmentAggregator<AlignmentCompare> aggregator(config_);
 
@@ -318,6 +315,12 @@ void DBGAligner<Seeder, Extender, AlignmentCompare>
         double explored_nodes_d = num_explored_nodes;
         double explored_nodes_per_kmer =
             explored_nodes_d / (query.size() - graph_.get_k() + 1);
+        my_explored_nodes_per_kmer += explored_nodes_per_kmer;
+
+        if (best_score > -1000) {
+            my_aligned++;
+        }
+
         logger->trace("{}\tlength: {}\tcovered: {}\tbest score: {}\tseeds: {}\t"
                 "extensions: {}\texplored nodes: {}\texplored nodes/extension: {:.2f}\t"
                 "explored nodes/k-mer: {:.2f}\tlabels: {}\texplored nodes/k-mer/label: {:.2f}",
@@ -327,7 +330,6 @@ void DBGAligner<Seeder, Extender, AlignmentCompare>
                 explored_nodes_per_kmer, aligned_labels,
                 aligned_labels ? explored_nodes_per_kmer / aligned_labels : 0);
 
-        explored_nodes_per_kmer_per_query.insert({header, explored_nodes_per_kmer});
         callback(header, std::move(paths[i]));
     };
 }

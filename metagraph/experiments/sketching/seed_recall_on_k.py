@@ -28,6 +28,7 @@ if __name__ == '__main__':
     parser.add_argument('--seeder', type=str, default="sketch")
     parser.add_argument('--metagraph-path', type=str, required=True)
     parser.add_argument('--max-k', type=int, required=True)
+    parser.add_argument('--minimizer-window', type=int, required=True)
     parser.add_argument('--output-path', type=str, required=True)
     parser.add_argument('--min-path-size', type=int, required=True)
     parser.add_argument('--max-path-size', type=int, required=True)
@@ -53,6 +54,7 @@ if __name__ == '__main__':
         'parallel': args.parallel,
         'batch-size': args.batch_size,
         'seeder': args.seeder,
+        'minimizer-window': args.minimizer_window,
         'min-path-size': args.min_path_size,
         'max-path-size': args.max_path_size
     }
@@ -69,6 +71,7 @@ if __name__ == '__main__':
                   f"--embed-dim {config['embed-dim']} " \
                   f"--n-times-sketch {config['n-times-sketch']} " \
                   f"--mutation-rate {config['mutation-rate']} " \
+                  f"--minimizer-window {config['minimizer-window']} " \
                   f"--num-query-seqs {config['num-query-seqs']} " \
                   f"--min-path-size {config['min-path-size']} " \
                   f"--max-path-size {config['max-path-size']} " \

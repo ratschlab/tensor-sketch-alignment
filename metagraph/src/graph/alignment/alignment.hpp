@@ -342,7 +342,7 @@ class AlignmentResults {
     auto begin() const { return alignments_.begin(); }
     auto end() const { return alignments_.end(); }
 
-  private:
+  public:
     std::string query_;
     std::string query_rc_;
     std::vector<Alignment> alignments_;

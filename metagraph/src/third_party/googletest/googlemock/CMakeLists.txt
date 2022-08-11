@@ -48,7 +48,7 @@ if (COMMAND set_up_hermetic_build)
   set_up_hermetic_build()
 endif()
 
-# Instructs CMake to process Google Test's CMakeLists.txt and add its
+# Instructs CMake to process Google Test's _CMakeLists.txt and add its
 # targets to the current scope.  We are placing Google Test's binary
 # directory in a subdirectory of our own as VC compilation may break
 # if they are the same (the default).
@@ -64,7 +64,7 @@ else()
   mark_as_advanced(gmock_build_tests)
 endif()
 
-# Although Google Test's CMakeLists.txt calls this function, the
+# Although Google Test's _CMakeLists.txt calls this function, the
 # changes there don't affect the current scope.  Therefore we have to
 # call it again here.
 config_compiler_and_linker()  # from ${gtest_dir}/cmake/internal_utils.cmake

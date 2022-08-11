@@ -21,21 +21,25 @@ class Config {
 
     // Sketches
     bool experiment = false;
-    std::string output_path = "/Users/alex/metagraph/metagraph/experiments/sketching/data/generated.fa";
+    std::string output_path = "/Users/alex/metagraph/metagraph/experiments/sketching/data/";
     std::string seeder = "default";
     using kmer_type = uint64_t;
     using seq_type = uint8_t;
 //    kmer_type kmer_word_size = ts::int_pow<kmer_type>(ts::alphabet_size, 1);
     kmer_type kmer_word_size = 4;
     size_t embed_dim = 20;
-    size_t tuple_length = 3;
-    size_t stride = 2; // WARNING: This is m_stride, not stride
+    size_t tuple_length = 6;
+    size_t m = 10;
+    size_t stride = m / 2;
+    size_t num_neighbours = 10;
+
     // Sketcher params, the above are for the sketch itself
     uint32_t n_times_sketch = 5;
     uint32_t mutation_rate = 0;
     uint32_t num_query_seqs = 100;
     uint32_t min_path_size = 5;
     uint32_t max_path_size = 10;
+    uint32_t minimizer_window = 25;
 
     bool print_graph = false;
     bool print_graph_internal_repr = false;

@@ -11,8 +11,21 @@ namespace graph {
 namespace align {
 
 using mtg::common::logger;
+using namespace boost::multiprecision;
+typedef std::pair<float, Seed> pi;
 
 typedef Alignment::score_t score_t;
+//using key_type = boost::multiprecision::uint256_t;
+using key_type = uint64_t;
+struct myComp {
+    constexpr bool operator()(
+            pi const& a,
+            pi const& b)
+    const noexcept
+    {
+        return a.first < b.first;
+    }
+};
 
 ExactSeeder::ExactSeeder(const DeBruijnGraph &graph,
                          std::string_view query,
@@ -81,8 +94,9 @@ auto ExactSeeder::get_seeds() const -> std::vector<Seed> {
     return seeds;
 }
 
-auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
+std::vector<Seed> SketchSeeder::get_seeds() const {
     size_t k = graph_.get_k();
+
     assert(k >= config_.min_seed_length);
 
     size_t end_clipping = query_.size() - k;
@@ -92,52 +106,90 @@ auto SketchSeeder::get_seeds() const -> std::vector<Seed> {
     for (unsigned char c: query_) {
         query_to_int.push_back(ts::char2int(c));
     }
+    uint32_t num_neighs = config_.num_neighbours;
     std::vector<Seed> seeds;
-    seeds.reserve(query_.size() - k);
+    seeds.reserve(num_neighs*(query_.size() - k));
     if (config_.max_seed_length < k)
         return seeds;
-    
-    int ratio = 5;
-    int m_stride = config_.stride;
-    int m = (m_stride * k) / ratio;
-    std::vector<std::vector<double>> m_sketches(query_.size() - k + 1);
-    for (int n_repeat = 0; n_repeat < config_.n_times_sketch; n_repeat++) {
-        ts::TensorSlide<uint8_t> tensor = ts::TensorSlide<uint8_t>(config_.kmer_word_size,
-                                                                   config_.embed_dim,
-                                                                   config_.tuple_length,
-                                                                   m,
-                                                                   1,
-                                                                   n_repeat);
-        m_sketches.clear();
-        m_sketches = tensor.compute(query_to_int);
-        end_clipping = query_.size() - k;
-        for (int kmer = 0; kmer < query_.size() - k + 1; ++kmer, --end_clipping) {
-            // For each kmer, we concat (ratio - 1) mmers
-            // So for kmer i, we concat mmers i:i + (ratio - 1)
-            boost::multiprecision::uint256_t discretized_sketch = 0;
-            int bitset_pos = 0;
-            // 8 8 8 8 bits (0 4 8 12)
-            // 0 64 128 256 (64 64 64 64)
-            for(int mmer = kmer; mmer < kmer + (ratio - 1) * m_stride; mmer += m_stride) {
-                // set bits
-                auto m_sketch = m_sketches[mmer];
-                for(int i = 0; i < config_.embed_dim; ++i) {
-                    discretized_sketch <<= 1;
-                    discretized_sketch |= std::signbit(m_sketch[i]);
-                }
-                bitset_pos+=config_.embed_dim;
-            }
 
-            // for one repeat we have one kmer with its discretized sketch
+    uint32_t nq = query_.size() - k + 1;
+    uint32_t num_regions = (query_.size() - k + 1) / k;
+    double stride_ratio = 0.1;
+    double window_ratio = 0.2;
+    uint32_t stride = static_cast<uint32_t>(stride_ratio * (double)k);
+    uint32_t window = static_cast<uint32_t>(window_ratio * (double)k);
+    uint32_t num_windows = static_cast<uint32_t>(std::ceil((double)(k - window + 1) / (double)stride));
 
-            if (graph_.sketch_maps[n_repeat].count(discretized_sketch)) {
-                for (auto match : graph_.sketch_maps[n_repeat].at(discretized_sketch))
-                    seeds.emplace_back(query_.substr(kmer, k),
-                                   std::vector<node_index>({ match }),
-                                   orientation_, 0, kmer, end_clipping);
+
+    uint32_t embed_dim = config_.embed_dim;
+    for (uint32_t n_repeat = 0; n_repeat < config_.n_times_sketch; n_repeat++) {
+        std::priority_queue<pi, std::vector<pi>, myComp> pq;
+        idx_t* I = new idx_t[num_neighs  * nq];
+        float* D = new float[num_neighs * nq];
+        float* xq = new float[embed_dim * num_windows * nq];
+
+        uint32_t pos = 0;
+        for(uint32_t kmer_start = 0; kmer_start < query_.size() - k + 1; ++kmer_start) {
+            std::vector<uint8_t> kmer_string(query_to_int.begin() + kmer_start, query_to_int.begin() + kmer_start + k);
+//            std::cout << kmer_start << " " << query_.substr(kmer_start, k) << std::endl;
+            // Get full sketch
+            std::vector<double> full_sketch;
+            full_sketch.reserve(embed_dim * num_windows);
+
+            for(uint32_t mmer_start = 0; mmer_start < k - window + 1; mmer_start += stride) {
+                std::vector<uint8_t> mmer_string(kmer_string.begin() + mmer_start, kmer_string.begin() + mmer_start + window);
+                std::vector<double> sketch = ts::Tensor<uint8_t>(config_.kmer_word_size, config_.embed_dim, config_.tuple_length, n_repeat).compute(mmer_string);
+                full_sketch.insert(full_sketch.end(), sketch.begin(), sketch.end());
             }
+            for(uint32_t j = 0; j < embed_dim * num_windows; ++j) {
+                xq[pos * embed_dim * num_windows + j] = full_sketch[j];
+            }
+            pos++;
+        }
+        graph_.index->search(nq, xq, num_neighs, D, I);
+
+
+        Seed best_seed;
+        float best_distance = std::numeric_limits<float>::max();
+        for(uint32_t i = 0; i < nq; ++i) {
+            for(uint32_t j = 0; j < num_neighs; ++j) {
+
+                node_index near_neighbour = (node_index)(I[i * num_neighs + j]);
+                double near_neighbour_distance = D[i * num_neighs + j];
+                //                std::cout << near_neighbour << " ";
+//                std::cout << near_neighbour << " " << graph_.debugmap[near_neighbour] << std::endl;
+//                std::cout << near_neighbour << " distance  " << near_neighbour_distance << std::endl;
+//                std::cout << query_.substr(i, k) << std::endl;
+//                std::cout << graph_.get_node_sequence(graph_.debugmap[near_neighbour]) << std::endl;
+//                std::cout << graph_.get_node_sequence(near_neighbour) << " " << (query_.substr(i, k) == graph_.get_node_sequence(near_neighbour)) << std::endl;
+//                if(D[i * num_neighs + j] < best_distance) {
+//                    best_distance = D[i * num_neighs + j];
+//                    best_seed = Seed(query_.substr(i, k),
+//                            std::vector<node_index>{ near_neighbour },
+//                            orientation_, 0, i, query_.size() - (k + i));
+//                }
+                seeds.emplace_back(query_.substr(i, k),
+                                   std::vector<node_index>{ near_neighbour },
+                                   orientation_, 0, i, query_.size() - (k + i));
+//                pq.push(std::make_pair(near_neighbour_distance,
+//                                       Seed(query_.substr(i, k), std::vector<node_index>{ near_neighbour }, orientation_, 0, i, query_.size() - (k + i))));
+//                if (pq.size() > num_neighs) {
+//                    pq.pop();
+//                }
+            }
+//            if ((i + 1) % 1 == 0 || i == nq - 1) {
+////                best_distance = std::numeric_limits<float>::max();
+////                seeds.emplace_back(best_seed);
+//                while(!pq.empty()) {
+//                    seeds.emplace_back(pq.top().second);
+//                    pq.pop();
+//                }
+//            }
+//            std::cout << std::endl;
         }
     }
+
+
     return seeds;
 }
 
@@ -154,12 +206,16 @@ const DBGSuccinct& get_base_dbg_succ(const DeBruijnGraph *graph) {
 }
 
 auto SketchSeeder::get_alignments() const -> std::vector<Alignment> {
+//    std::cout << "gegct_alignments()" << std::endl;
     std::vector<Seed> seeds = get_seeds();
+    if (seeds.size() == 0) {
+        return {};
+    }
     std::vector<Alignment> alignments(seeds.size());
     const DBGSuccinct &dbg_succ = get_base_dbg_succ(&this->graph_);
     auto k = graph_.get_k();
     const auto &boss = dbg_succ.get_boss();
-    for(int i = 0; i < seeds.size(); ++i) {
+    for(unsigned long i = 0; i < seeds.size(); ++i) {
         Seed seed = seeds[i];
         // Query sequence match
         std::string_view kmer_match = seed.get_query_view().substr(0, k);
@@ -171,7 +227,7 @@ auto SketchSeeder::get_alignments() const -> std::vector<Alignment> {
         std::string last_char_string = std::string(1, last_char);
         std::string cigar_str;
         Cigar cigar(Cigar::CLIPPED, seed.get_clipping());
-        if (last_char == kmer_match.front()) {
+        if (last_char == kmer_match[0]) {
             cigar.append(Cigar("1="));
         } else {
             cigar.append(Cigar("1X"));

@@ -322,6 +322,8 @@ Config::Config(int argc, char *argv[]) {
         } else if (!strcmp(argv[i], "--state")) {
             state = string_to_state(get_value(i++));
             // sketches
+        } else if (!strcmp(argv[i], "--num-neighbours")) {
+            num_neighbours = std::stoi(get_value(i++));
         } else if (!strcmp(argv[i], "--max-path-size")) {
             max_path_size = std::stoi(get_value(i++));
         } else if (!strcmp(argv[i], "--min-path-size")) {
@@ -336,7 +338,13 @@ Config::Config(int argc, char *argv[]) {
             fprintf(stderr, "\nWARNING: Number of query sequences: %d\n", num_query_seqs);
             fprintf(stderr, "\nWARNING: Mutation rate: %d\n", mutation_rate);
             fprintf(stderr, "\nWARNING: Saving sequences to: %s\n\n", output_path.c_str());
-            fnames.push_back(output_path);
+            fnames.push_back(output_path + "mutated.fa");
+        } else if (!strcmp(argv[i], "--stride")) {
+            stride = std::stoi(get_value(i++));
+        } else if (!strcmp(argv[i], "--m")) {
+            m = std::stoi(get_value(i++));
+        } else if (!strcmp(argv[i], "--minimizer-window")) {
+            minimizer_window = std::stoi(get_value(i++));
         } else if (!strcmp(argv[i], "--mutation-rate")) {
             mutation_rate = std::stoi(get_value(i++));
         } else if (!strcmp(argv[i], "--n-times-sketch")) {

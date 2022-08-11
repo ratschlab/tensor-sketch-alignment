@@ -16,6 +16,11 @@ include_directories(.)
 
 #set(CMAKE_BUILD_TYPE Debug)
 
+# FAISS
+include_directories(external-libraries/faiss)
+include_directories(/home/alex/.linuxbrew/Cellar/openblas/0.3.20/include)
+link_directories(external-libraries/faiss/build/faiss)
+link_directories(/home/alex/.linuxbrew/Cellar/openblas/0.3.20/lib)
 # Google Flags Library
 add_subdirectory(${PROJECT_SOURCE_DIR}/src/third_party/gflags EXCLUDE_FROM_ALL)
 
@@ -112,14 +117,14 @@ add_subdirectory(external-libraries/jsoncpp)
 
 add_compile_options(
   -Wall -Wextra
-  -D_THREAD_SAFE -pthread -g -O0
+  -D_THREAD_SAFE -pthread -g -O3
   # -DDBGDEBUG -Wconversion -Wsign-conversion -Werror=shadow=compatible-local
 )
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(
     -Wno-exit-time-destructors
-    -Wno-deprecated-declarations -g -O0
+    -Wno-deprecated-declarations -g -O3
   )
 
   if (NOT CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
@@ -177,6 +182,28 @@ message(WARNING "Compiling without AVX instructions!")
 endif()
 
 #---------
+# FAISS
+#---------
+#option(FAISS_OPT_LEVEL "" "sse4")
+#option(FAISS_ENABLE_GPU "Enable support for GPU indexes." OFF)
+#option(FAISS_ENABLE_PYTHON "Build Python extension." OFF)
+#option(FAISS_ENABLE_C_API "Build C API." OFF)
+#
+#if(FAISS_ENABLE_GPU)
+#  set(CMAKE_CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER})
+#  enable_language(CUDA)
+#endif()
+#add_subdirectory(src/faiss/)
+#if(FAISS_ENABLE_GPU)
+#  add_subdirectory(src/faiss/gpu)
+#endif()
+#if(FAISS_ENABLE_PYTHON)
+#  add_subdirectory(src/faiss/python)
+#endif()
+#if(FAISS_ENABLE_C_API)
+#  add_subdirectory(src/faiss/c_api)
+#endif()
+#---------
 # Sketch
 #---------
 file(GLOB util_files "src/util/*.cpp")
@@ -224,14 +251,14 @@ endif()
 
 
 # Profile with gprof
-set(CMAKE_CXX_FLAGS_PROFILE "-pg -DNDEBUG -g -O0")
-set(CMAKE_EXE_LINKER_FLAGS_PROFILE "-pg -g -O0")
-set(CMAKE_SHARED_LINKER_FLAGS_PROFILE "-pg -g -O0")
+set(CMAKE_CXX_FLAGS_PROFILE "-pg -DNDEBUG -g -O3")
+set(CMAKE_EXE_LINKER_FLAGS_PROFILE "-pg -g -O3")
+set(CMAKE_SHARED_LINKER_FLAGS_PROFILE "-pg -g -O3")
 
 # Profile with gperftools
-set(CMAKE_CXX_FLAGS_GPROFILE "-fno-omit-frame-pointer -DNDEBUG -g -O0")
-set(CMAKE_EXE_LINKER_FLAGS_GPROFILE "-g -O0")
-set(CMAKE_SHARED_LINKER_FLAGS_GPROFILE "-g -O0")
+set(CMAKE_CXX_FLAGS_GPROFILE "-fno-omit-frame-pointer -DNDEBUG -g -O3")
+set(CMAKE_EXE_LINKER_FLAGS_GPROFILE "-g -O3")
+set(CMAKE_SHARED_LINKER_FLAGS_GPROFILE "-g -O3")
 
 set(PROFILER_LIBRARIES PROFILER_LIBRARIES-NOTFOUND)
 find_library(PROFILER_LIBRARIES
@@ -250,7 +277,7 @@ if(${CMAKE_BUILD_TYPE} MATCHES GPROFILE)
 endif()
 
 # Debug build type
-set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O3")
 
 # Link time optimization
 if(LINK_OPT)
@@ -264,9 +291,9 @@ if(LINK_OPT)
 endif()
 
 # Thread sanitizer build type
-set(CMAKE_CXX_FLAGS_THREADS "-g -fsanitize=thread -O0")
-set(CMAKE_EXE_LINKER_FLAGS_THREADS "-g -fsanitize=thread -O0")
-set(CMAKE_SHARED_LINKER_FLAGS_THREADS "-g -fsanitize=thread -O0")
+set(CMAKE_CXX_FLAGS_THREADS "-g -fsanitize=thread -O3")
+set(CMAKE_EXE_LINKER_FLAGS_THREADS "-g -fsanitize=thread -O3")
+set(CMAKE_SHARED_LINKER_FLAGS_THREADS "-g -fsanitize=thread -O3")
 
 link_directories(
   ${CMAKE_BINARY_DIR}/KMC
@@ -465,9 +492,9 @@ if(NOT CPPNOFS)
   endif()
 endif()
 
-target_link_libraries(metagraph-core ${METALIBS} sequence util sketch_lib)
-target_link_libraries(metagraph-cli PRIVATE metagraph-core sequence util sketch_lib)
-target_link_libraries(metagraph metagraph-core metagraph-cli sequence util sketch_lib)
+target_link_libraries(metagraph-core ${METALIBS} sequence util sketch_lib faiss blas lapack)
+target_link_libraries(metagraph-cli PRIVATE metagraph-core sequence util sketch_lib faiss blas lapack)
+target_link_libraries(metagraph metagraph-core metagraph-cli sequence util sketch_lib faiss blas lapack)
 
 add_custom_target(link_target ALL
   COMMAND ${CMAKE_COMMAND} -E
@@ -517,97 +544,97 @@ install(TARGETS metagraph DESTINATION bin)
 # Unit Tests
 #-------------------
 # There is an old gtest library shipped with sdsl.
-# Remove it as we are going to use a more recent one.
-execute_process(COMMAND rm -rf ${PROJECT_SOURCE_DIR}/external-libraries/sdsl-lite/include/gtest)
-
-add_subdirectory(${PROJECT_SOURCE_DIR}/external-libraries/googletest EXCLUDE_FROM_ALL)
-target_compile_options(gtest_main PRIVATE -w)
-target_compile_options(gtest PRIVATE -w)
-
-set(DEATH_TEST_FLAG "")
-if(NO_DEATH_TESTS)
-  message(STATUS "Disabling death tests in gtest")
-  set(DEATH_TEST_FLAG -D_NO_DEATH_TEST)
-endif()
-
-file(GLOB unit_tests_files
-  "tests/*.cpp"
-  "tests/*/*.cpp"
-  "tests/*/*/*.cpp"
-  "tests/*/*/*/*.cpp"
-)
-list(FILTER unit_tests_files EXCLUDE REGEX ".*\\._.*")
-
-link_directories(
-  ${CMAKE_BINARY_DIR}
-)
-
-add_executable(unit_tests ${unit_tests_files})
-target_include_directories(unit_tests PRIVATE "${PROJECT_SOURCE_DIR}")
-target_compile_definitions(unit_tests PRIVATE TEST_DATA_DIR="${PROJECT_SOURCE_DIR}/tests/data")
-target_link_libraries(unit_tests gtest_main gtest gmock metagraph-core metagraph-cli)
-
-target_compile_options(unit_tests PRIVATE -Wno-undefined-var-template ${DEATH_TEST_FLAG})
-
-#-------------------
-# Benchmarks
-#-------------------
-add_subdirectory(${PROJECT_SOURCE_DIR}/external-libraries/benchmark EXCLUDE_FROM_ALL)
-
-file(GLOB benchmark_files
-  "benchmarks/*.cpp"
-  "benchmarks/*/*.cpp"
-)
-list(FILTER benchmark_files EXCLUDE REGEX ".*\\._.*")
-
-add_executable(benchmarks ${benchmark_files})
-target_compile_definitions(benchmarks PRIVATE TEST_DATA_DIR="${PROJECT_SOURCE_DIR}/tests/data")
-target_link_libraries(benchmarks benchmark_main benchmark metagraph-core metagraph-cli -lsdsl)
-
-target_compile_options(benchmarks PRIVATE -Wno-undefined-var-template)
+## Remove it as we are going to use a more recent one.
+#execute_process(COMMAND rm -rf ${PROJECT_SOURCE_DIR}/external-libraries/sdsl-lite/include/gtest)
+#
+#add_subdirectory(${PROJECT_SOURCE_DIR}/external-libraries/googletest EXCLUDE_FROM_ALL)
+#target_compile_options(gtest_main PRIVATE -w)
+#target_compile_options(gtest PRIVATE -w)
+#
+#set(DEATH_TEST_FLAG "")
+#if(NO_DEATH_TESTS)
+#  message(STATUS "Disabling death tests in gtest")
+#  set(DEATH_TEST_FLAG -D_NO_DEATH_TEST)
+#endif()
+#
+#file(GLOB unit_tests_files
+#  "tests/*.cpp"
+#  "tests/*/*.cpp"
+#  "tests/*/*/*.cpp"
+#  "tests/*/*/*/*.cpp"
+#)
+#list(FILTER unit_tests_files EXCLUDE REGEX ".*\\._.*")
+#
+#link_directories(
+#  ${CMAKE_BINARY_DIR}
+#)
+#
+#add_executable(unit_tests ${unit_tests_files})
+#target_include_directories(unit_tests PRIVATE "${PROJECT_SOURCE_DIR}")
+#target_compile_definitions(unit_tests PRIVATE TEST_DATA_DIR="${PROJECT_SOURCE_DIR}/tests/data")
+#target_link_libraries(unit_tests gtest_main gtest gmock metagraph-core metagraph-cli)
+#
+#target_compile_options(unit_tests PRIVATE -Wno-undefined-var-template ${DEATH_TEST_FLAG})
+#
+##-------------------
+## Benchmarkincludes
+##-------------------
+#add_subdirectory(${PROJECT_SOURCE_DIR}/external-libraries/benchmark EXCLUDE_FROM_ALL)
+#
+#file(GLOB benchmark_files
+#  "benchmarks/*.cpp"
+#  "benchmarks/*/*.cpp"
+#)
+#list(FILTER benchmark_files EXCLUDE REGEX ".*\\._.*")
+#
+#add_executable(benchmarks ${benchmark_files})
+#target_compile_definitions(benchmarks PRIVATE TEST_DATA_DIR="${PROJECT_SOURCE_DIR}/tests/data")
+#target_link_libraries(benchmarks benchmark_main benchmark metagraph-core metagraph-cli -lsdsl)
+#
+#target_compile_options(benchmarks PRIVATE -Wno-undefined-var-template)
 
 #-------------------
 # Tests
 #-------------------
-find_package(Python3 3.4 REQUIRED COMPONENTS Interpreter)
-
-add_custom_command(OUTPUT ${PROJECT_BINARY_DIR}/test_venv/DONE
-  COMMAND ${PROJECT_SOURCE_DIR}/integration_tests/install_test_environment.sh ${PROJECT_SOURCE_DIR}/api/python ${PROJECT_BINARY_DIR}/test_venv
-)
-execute_process(COMMAND ${PROJECT_SOURCE_DIR}/integration_tests/install_test_environment.sh ${PROJECT_SOURCE_DIR}/api/python ${PROJECT_BINARY_DIR}/test_venv)
-
-# creating a make target, s.t. the environment can be set up explicitly
-add_custom_target(install_test_environment
-  DEPENDS ${PROJECT_BINARY_DIR}/test_venv/DONE
-)
-
-# --- integration tests ---
-add_custom_target(check
-  COMMAND ${PROJECT_BINARY_DIR}/test_venv/bin/python ${PROJECT_SOURCE_DIR}/integration_tests/main.py
-  DEPENDS metagraph
-  DEPENDS install_test_environment
-)
-# --- integration tests + unit tests ---
-add_custom_target(check_all
-  COMMAND make check
-  COMMAND unit_tests
-  DEPENDS check unit_tests
-)
-add_test(NAME integration_tests COMMAND make check)
-add_test(NAME unit_tests COMMAND unit_tests)
-
-# --- integration tests runner ---
-get_target_property(PythonPath Python3::Interpreter IMPORTED_LOCATION)
-file(WRITE "${PROJECT_BINARY_DIR}/CMakeFiles/integration_tests" "#!/bin/bash\n")
-file(APPEND "${PROJECT_BINARY_DIR}/CMakeFiles/integration_tests"
-  "\n${PROJECT_BINARY_DIR}/test_venv/bin/python ${PROJECT_SOURCE_DIR}/integration_tests/main.py \"$@\""
-)
-file(INSTALL "${PROJECT_BINARY_DIR}/CMakeFiles/integration_tests"
-  DESTINATION "${PROJECT_BINARY_DIR}"
-  FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
-                   GROUP_READ GROUP_EXECUTE
-                   WORLD_READ WORLD_EXECUTE
-)
+#find_package(Python3 3.4 REQUIRED COMPONENTS Interpreter)
+#
+#add_custom_command(OUTPUT ${PROJECT_BINARY_DIR}/test_venv/DONE
+#  COMMAND ${PROJECT_SOURCE_DIR}/integration_tests/install_test_environment.sh ${PROJECT_SOURCE_DIR}/api/python ${PROJECT_BINARY_DIR}/test_venv
+#)
+#execute_process(COMMAND ${PROJECT_SOURCE_DIR}/integration_tests/install_test_environment.sh ${PROJECT_SOURCE_DIR}/api/python ${PROJECT_BINARY_DIR}/test_venv)
+#
+## creating a make target, s.t. the environment can be set up explicitly
+#add_custom_target(install_test_environment
+#  DEPENDS ${PROJECT_BINARY_DIR}/test_venv/DONE
+#)
+#
+## --- integration tests ---
+#add_custom_target(check
+#  COMMAND ${PROJECT_BINARY_DIR}/test_venv/bin/python ${PROJECT_SOURCE_DIR}/integration_tests/main.py
+#  DEPENDS metagraph
+#  DEPENDS install_test_environment
+#)
+## --- integration tests + unit tests ---
+#add_custom_target(check_all
+#  COMMAND make check
+#  COMMAND unit_tests
+#  DEPENDS check unit_tests
+#)
+#add_test(NAME integration_tests COMMAND make check)
+#add_test(NAME unit_tests COMMAND unit_tests)
+#
+## --- integration tests runner ---
+#get_target_property(PythonPath Python3::Interpreter IMPORTED_LOCATION)
+#file(WRITE "${PROJECT_BINARY_DIR}/CMakeFiles/integration_tests" "#!/bin/bash\n")
+#file(APPEND "${PROJECT_BINARY_DIR}/CMakeFiles/integration_tests"
+#  "\n${PROJECT_BINARY_DIR}/test_venv/bin/python ${PROJECT_SOURCE_DIR}/integration_tests/main.py \"$@\""
+#)
+#file(INSTALL "${PROJECT_BINARY_DIR}/CMakeFiles/integration_tests"
+#  DESTINATION "${PROJECT_BINARY_DIR}"
+#  FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
+#                   GROUP_READ GROUP_EXECUTE
+#                   WORLD_READ WORLD_EXECUTE
+#)
 
 ##-------------------
 ## Python interfaces

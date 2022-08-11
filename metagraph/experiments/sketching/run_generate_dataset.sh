@@ -1,6 +1,6 @@
 ############### Parameters ###############
-metagraph_path="/Users/alex/metagraph/metagraph/build/metagraph"
-max_k=30
+metagraph_path="/home/alex/metagraph/metagraph/build/metagraph"
+max_k=91
 graph_seq_len=10000000
 
 # Generate the dataset
