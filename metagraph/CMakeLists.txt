@@ -17,8 +17,10 @@ include_directories(.)
 #set(CMAKE_BUILD_TYPE Debug)
 
 # FAISS
-include_directories(external_libraries/faiss)
-link_directories(external_libraries/faiss/build/faiss)
+include_directories(external-libraries/faiss)
+include_directories(/home/alex/.linuxbrew/Cellar/openblas/0.3.20/include)
+link_directories(external-libraries/faiss/build/faiss)
+link_directories(/home/alex/.linuxbrew/Cellar/openblas/0.3.20/lib)
 # Google Flags Library
 add_subdirectory(${PROJECT_SOURCE_DIR}/src/third_party/gflags EXCLUDE_FROM_ALL)
 
@@ -490,9 +492,9 @@ if(NOT CPPNOFS)
   endif()
 endif()
 
-target_link_libraries(metagraph-core ${METALIBS} sequence util sketch_lib faiss lapack blas)
-target_link_libraries(metagraph-cli PRIVATE metagraph-core sequence util sketch_lib faiss lapack blas)
-target_link_libraries(metagraph metagraph-core metagraph-cli sequence util sketch_lib faiss lapack blas)
+target_link_libraries(metagraph-core ${METALIBS} sequence util sketch_lib faiss blas lapack)
+target_link_libraries(metagraph-cli PRIVATE metagraph-core sequence util sketch_lib faiss blas lapack)
+target_link_libraries(metagraph metagraph-core metagraph-cli sequence util sketch_lib faiss blas lapack)
 
 add_custom_target(link_target ALL
   COMMAND ${CMAKE_COMMAND} -E
@@ -575,7 +577,7 @@ install(TARGETS metagraph DESTINATION bin)
 #target_compile_options(unit_tests PRIVATE -Wno-undefined-var-template ${DEATH_TEST_FLAG})
 #
 ##-------------------
-## Benchmarks
+## Benchmarkincludes
 ##-------------------
 #add_subdirectory(${PROJECT_SOURCE_DIR}/external-libraries/benchmark EXCLUDE_FROM_ALL)
 #

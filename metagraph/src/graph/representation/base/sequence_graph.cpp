@@ -514,12 +514,17 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
     uint32_t stride = static_cast<uint32_t>(stride_ratio * (double)k);
     uint32_t window = static_cast<uint32_t>(window_ratio * (double)k);
     uint32_t num_windows = static_cast<uint32_t>(std::ceil((double)(k - window + 1) / (double)stride));
-
-    index_ = (faiss::IndexHNSW*)index_factory(embed_dim * num_windows, "HNSW32,Flat", faiss::METRIC_L2);
-    index_->hnsw.efSearch = 128;
-    index_->hnsw.efConstruction = 40;
+    /* quantizer = (faiss::IndexHNSWFlat*)index_factory(embed_dim * num_windows, "HNSW32,Flat", faiss::METRIC_L2); */
+    /* index_ = index_factory(embed_dim * num_windows, "HNSW32,SQ8", faiss::METRIC_L2); */
+    index_ = (faiss::IndexHNSWSQ*)index_factory(embed_dim * num_windows, "HNSW32,SQfp16", faiss::METRIC_L2);
+    index_->hnsw.efSearch = 16;
+    index_->hnsw.efConstruction = 800;
     index_->hnsw.search_bounded_queue = true;
     index = new faiss::IndexIDMap2(index_);
+    /* uint32_t nbits = num_nodes() / k / 39 - 2; */
+    /* index = new faiss::IndexIVFFlat(quantizer, embed_dim * num_windows, nbits); */
+    /* index->nprobe = 64; */
+
 //    tuple_size = 2              #@param {type:"slider",min:1,max:10,step:1}
 //    sketch_dim = 100            #@param {type:"slider",min:10,max:1000,step:10}
 //
@@ -573,6 +578,7 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                     pos++;
                     current_ram_usage += sizeof(double) * (embed_dim + 1);
                 }
+                index->train(pos, sketch_arr);
                 index->add_with_ids(pos, sketch_arr, positions);
 
                 // debug

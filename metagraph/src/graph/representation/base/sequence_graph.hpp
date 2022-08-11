@@ -24,6 +24,7 @@
 #include <boost/multiprecision/cpp_int.hpp>
 #include <faiss/IndexFlat.h>
 #include <faiss/IndexHNSW.h>
+#include <faiss/IndexIVFFlat.h>
 #include <faiss/MetaIndexes.h>
 #include <faiss/index_factory.h>
 #include <faiss/Index.h>
@@ -177,9 +178,11 @@ class DeBruijnGraph : public SequenceGraph {
                                   uint32_t n_times_sketch,
                                   uint32_t num_threads);
     mutable std::unordered_map<node_index, node_index> debugmap;
-//    faiss::Index *index_;
-    faiss::IndexHNSW *index_;
+    faiss::IndexHNSWSQ *index_;
+    /* faiss::IndexHNSW *index_; */
     faiss::IndexIDMap2 *index;
+    /* faiss::IndexHNSWFlat *quantizer; */
+    /* faiss::IndexIVFFlat *index; */
     // Returns a map from tmer to the node_index
     // node_index corresponds to the node where the tmer starts at
     // n is the number of tmers

@@ -1,4 +1,5 @@
 import plotly.graph_objects as go
+import multiprocessing
 import json
 from plotly.subplots import make_subplots
 import argparse
@@ -70,14 +71,14 @@ if __name__ == '__main__':
     parser.add_argument('--n-times-sketch', type=int, default=1)
     parser.add_argument('--mutation-rate', type=int, default=1)
     parser.add_argument('--num-query-seqs', type=int, default=100)
-    parser.add_argument('--parallel', type=int, default=8)
+    parser.add_argument('--parallel', type=int, default=multiprocessing.cpu_count() - 1)
     parser.add_argument('--batch-size', type=int, default=1000)
-    parser.add_argument('--metagraph-path', type=str, default="/Users/alex/metagraph/metagraph/build/metagraph_DNA") #required=True)
+    parser.add_argument('--metagraph-path', type=str, default="/home/alex/metagraph/metagraph/build/metagraph_DNA") #required=True)
     parser.add_argument('--minimizer-window', default=1, type=int)
     parser.add_argument('--min-path-size', type=int, default=20)
     parser.add_argument('--max-path-size', type=int, default=21)
     parser.add_argument('--num-neighbours', type=int, default=10)
-    parser.add_argument('--dataset-dir', default="/Users/alex/metagraph/metagraph/experiments/sketching/data/", type=str)
+    parser.add_argument('--dataset-dir', default="/home/alex/metagraph/metagraph/experiments/sketching/data/", type=str)
 
     args = parser.parse_args()
 
