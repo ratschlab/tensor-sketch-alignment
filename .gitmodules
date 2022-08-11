@@ -62,3 +62,6 @@
 [submodule "metagraph/external-libraries/Priority-Deque"]
 	path = metagraph/external-libraries/Priority-Deque
 	url = https://github.com/nmcclatchey/Priority-Deque
+[submodule "metagraph/external-libraries/faiss"]
+	path = metagraph/external-libraries/faiss
+	url = https://github.com/facebookresearch/faiss.git
