@@ -302,7 +302,7 @@ string mutate(string s, int mutation_rate, std::vector<char> alphabet) {
     while (counter < s.size()) {
         if (rand() % 100 < mutation_rate) {
             uint32_t chance = rand() % 100; // 25% chance of nothing, substitution, insertion, deletion
-            if (chance <= 33) {
+            if (chance <= 10) {
                 // substitution
                 char new_c = alphabet[rand() % alphabet.size()];
                 while (new_c == s[counter]) {
@@ -310,13 +310,16 @@ string mutate(string s, int mutation_rate, std::vector<char> alphabet) {
                 }
                 mutated_string += new_c;
                 counter++;
-            } else if (chance > 33 && chance <= 66) {
+            } else if (chance > 10 && chance <= 55) {
                 // deletion
-                counter++;
-            } else if (chance > 66) {
+                /* counter++; */
+                counter+=4;
+            } else if (chance > 55) {
                 // insertion
-                char new_c = alphabet[rand() % alphabet.size()];
-                mutated_string += new_c;
+                for(int i = 0; i < 4; ++i) {
+                    char new_c = alphabet[rand() % alphabet.size()];
+                    mutated_string += new_c;
+                }
             }
         } else {
             // nothing
@@ -406,8 +409,8 @@ int align_to_graph(Config *config) {
     std::ofstream reference_out;
     std::ofstream mutated_out;
     if (config->experiment) {
-        reference_out = std::ofstream(config->output_path + "reference.fa");
-        mutated_out = std::ofstream(config->output_path + "mutated.fa");
+        reference_out = std::ofstream(config->output_path + "reference_" + std::to_string(config->mutation_rate) + ".fa");
+        mutated_out = std::ofstream(config->output_path + "mutated_" + std::to_string(config->mutation_rate) + ".fa");
         if (config->min_path_size > graph->max_index()) {
             logger->error("min_path_size = {} is larger than graph->max_index() = {}",
                           config->min_path_size,
@@ -443,6 +446,8 @@ int align_to_graph(Config *config) {
         }
         mutated_out.close();
         reference_out.close();
+
+        return 0;
     }
 
     const auto &files = config->fnames;
@@ -608,7 +613,7 @@ int align_to_graph(Config *config) {
 
         thread_pool.join();
 
-        float avg_time = data_reading_timer.elapsed() / config->num_query_seqs;
+        float avg_time = data_reading_timer.elapsed();// / config->num_query_seqs;
         double precision = 0.0;
         if(n_precision > 0) {
             precision = total_explored_nodes_per_kmer / n_precision;

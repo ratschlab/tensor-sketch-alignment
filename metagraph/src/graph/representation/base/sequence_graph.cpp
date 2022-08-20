@@ -518,7 +518,6 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
     /* index_ = index_factory(embed_dim * num_windows, "HNSW32,SQ8", faiss::METRIC_L2); */
     index_ = (faiss::IndexHNSWSQ*)index_factory(embed_dim * num_windows, "HNSW32,SQfp16", faiss::METRIC_L2);
     index_->hnsw.efSearch = 16;
-    index_->hnsw.efConstruction = 800;
     index_->hnsw.search_bounded_queue = true;
     index = new faiss::IndexIDMap2(index_);
     /* uint32_t nbits = num_nodes() / k / 39 - 2; */

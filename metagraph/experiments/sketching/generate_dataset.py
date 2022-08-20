@@ -9,13 +9,19 @@ def get_random_str(main_str, substr_len):
     idx = random.randrange(0, len(main_str) - substr_len + 1)
     return main_str[idx:(idx+substr_len)]
 
+def make_vg():
+    command1 = f"{vg_path} construct -r data/sequence.fa"
+    f = open("data/sequence.vg", 'w')
+    subprocess.run(command1.split(), stdout=f)
+    command2 = f"{vg_path} index -x data/sequence.xg -g sequence.gcsa -k 16 data/sequence.vg"
+    subprocess.run(command2.split())
 
 DATASET_DIR = "./data"
 
 get_blunted_path = "/home/alex/benchmark/datagen/GetBlunted/build/get_blunted"
 vg_path = "/home/alex/benchmark/datagen/vg"
-print(vg_path)
-print(get_blunted_path)
+
+
 # Clean up
 shutil.rmtree(DATASET_DIR)
 os.mkdir(DATASET_DIR)
@@ -48,6 +54,7 @@ if __name__ == '__main__':
     with open(graph_seq_path, 'w') as f:
         f.write(out_graph_seq)
 
+    make_vg()
     # Generate graph
     for K in range(20, MAX_K, 10):
         dbg_output = os.path.join(DATASET_DIR, INPUT_SEQ.split('.')[0] + f'_{K}')
@@ -55,9 +62,10 @@ if __name__ == '__main__':
         build_command = f"{METAGRAPH_PATH} build -k {K} -o {dbg_output}.dbg {graph_seq_path}"
         assemble_command = f"{METAGRAPH_PATH} assemble --to-gfa --compacted --unitigs -o {dbg_output}.gfa {dbg_output}.dbg"
         blunt_command = f"{get_blunted_path} --input_gfa {dbg_output}.gfa"
-        vg_command = f"{vg_path} -g blunted_{dbg_output}.gfa -v"
+        vg_command = f"{vg_path} convert -g {blunted_dbg_output}.gfa -v"
         subprocess.run(build_command.split())
         subprocess.run(assemble_command.split())
-        open(f"{blunted_dbg_output}.gfa", 'w').write(str(subprocess.run(blunt_command.split(), capture_output=True).stdout))
-        open(f"{blunted_dbg_output}.vg", 'w').write(str(subprocess.run(vg_command.split(), capture_output=True).stdout))
+
+        blunted_graph = subprocess.run(blunt_command.split(), capture_output=True).stdout.decode("utf-8")
+        open(f"{blunted_dbg_output}.gfa", 'w').write(blunted_graph)
         print(f"[LOG] Saved .dbg file from generated sequence - {K}")
