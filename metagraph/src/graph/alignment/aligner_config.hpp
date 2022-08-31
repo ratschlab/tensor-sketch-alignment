@@ -54,6 +54,7 @@ struct DBGAlignerConfig {
     int8_t gap_extension_penalty = -2;
     int8_t left_end_bonus = 0;
     int8_t right_end_bonus = 0;
+    int8_t max_num_free_indels = 0;
 
     bool forward_and_reverse_complement = true;
     bool chain_alignments = false;
@@ -61,7 +62,6 @@ struct DBGAlignerConfig {
     bool global_xdrop = true;
     bool allow_left_trim = true;
     bool no_backtrack = false;
-    bool free_front_deletion = false;
 
     bool alignment_edit_distance;
     int8_t alignment_match_score;
