@@ -459,6 +459,9 @@ std::vector<Alignment> DefaultColumnExtender::extend(score_t min_path_score,
         auto &[S, E, F, node, i_prev, c, offset, max_pos, trim,
                xdrop_cutoff_i, score] = table[0];
         S[0] = config_.left_end_bonus && !seed_->get_clipping() ? config_.left_end_bonus : 0;
+        if (config_.free_front_deletion)
+            F[0] = 0;
+
         extend_ins_end(S, E, F, window.size() + 1 - trim,
                        xdrop_cutoffs_[xdrop_cutoff_i].second, config_);
 
@@ -617,9 +620,9 @@ std::vector<Alignment> DefaultColumnExtender::extend(score_t min_path_score,
                               xdrop_cutoff, config_, score, offset);
 
                 if (!trim && config_.free_front_deletion) {
-                    if (F[0] < 0) {
-                        F[0] = 0;
-                        S[0] = 0;
+                    if (F[0] - score_cur < 0) {
+                        F[0] = score_cur;
+                        S[0] = score_cur;
                     }
                 }
 
@@ -987,13 +990,15 @@ std::vector<Alignment> DefaultColumnExtender::backtrack(score_t min_path_score,
 
                     assert(pos >= trim_p);
 
-                    assert(F[pos - trim] == F_p[pos - trim_p] + score_cur + config_.gap_extension_penalty
-                        || F[pos - trim] == S_p[pos - trim_p] + score_cur + config_.gap_opening_penalty);
-
                     // if the deletion happened at the 0-th position, and the deletion
                     // resulted in a score of 0, then we are at the beginning
-                    if (!pos && F[0] == score_cur && F_p[0] == score_cur)
+                    if (!pos && F[0] == score_cur && F_p[0] == score_cur) {
+                        j = 0;
                         break;
+                    }
+
+                    assert(F[pos - trim] == F_p[pos - trim_p] + score_cur + config_.gap_extension_penalty
+                        || F[pos - trim] == S_p[pos - trim_p] + score_cur + config_.gap_opening_penalty);
 
                     align_offset = std::min(offset, k_minus_1);
 
