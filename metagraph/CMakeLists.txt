@@ -14,7 +14,7 @@ find_package(OpenMP REQUIRED)
 
 include_directories(.)
 
-#set(CMAKE_BUILD_TYPE Debug)
+# set(CMAKE_BUILD_TYPE Debug)
 
 # FAISS
 include_directories(external-libraries/faiss)

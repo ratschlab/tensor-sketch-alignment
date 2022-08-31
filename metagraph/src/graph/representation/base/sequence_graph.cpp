@@ -514,24 +514,10 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
     uint32_t stride = static_cast<uint32_t>(stride_ratio * (double)k);
     uint32_t window = static_cast<uint32_t>(window_ratio * (double)k);
     uint32_t num_windows = static_cast<uint32_t>(std::ceil((double)(k - window + 1) / (double)stride));
-    /* quantizer = (faiss::IndexHNSWFlat*)index_factory(embed_dim * num_windows, "HNSW32,Flat", faiss::METRIC_L2); */
-    /* index_ = index_factory(embed_dim * num_windows, "HNSW32,SQ8", faiss::METRIC_L2); */
-    index_ = (faiss::IndexHNSWSQ*)index_factory(embed_dim * num_windows, "HNSW32,SQfp16", faiss::METRIC_L2);
-    index_->hnsw.efSearch = 16;
-    index_->hnsw.search_bounded_queue = true;
+    index_ = (faiss::IndexHNSW*)index_factory(embed_dim * num_windows, "HNSW32", faiss::METRIC_L2);
+    index_->hnsw.efSearch = 1000;
+    /* index_->hnsw.search_bounded_queue = true; */
     index = new faiss::IndexIDMap2(index_);
-    /* uint32_t nbits = num_nodes() / k / 39 - 2; */
-    /* index = new faiss::IndexIVFFlat(quantizer, embed_dim * num_windows, nbits); */
-    /* index->nprobe = 64; */
-
-//    tuple_size = 2              #@param {type:"slider",min:1,max:10,step:1}
-//    sketch_dim = 100            #@param {type:"slider",min:10,max:1000,step:10}
-//
-//    stride_ratio = 0.1
-//    window_ratio = 0.2
-
-
-    debugmap = std::unordered_map<node_index, node_index>();
     for (uint32_t n_repeat = 0; n_repeat < n_times_sketch; n_repeat++) {
         call_unitigs(
             [&](const std::string &s, const std::vector <uint64_t> &v) {
@@ -579,7 +565,6 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                 }
                 index->train(pos, sketch_arr);
                 index->add_with_ids(pos, sketch_arr, positions);
-
                 // debug
 //                float* result;
 //                index->index->reconstruct(71152, result);
@@ -588,6 +573,7 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
 //                    std::cout << result[q] << " ";
 //                std::cout << std::endl;
             });
+        
     }
 }
 

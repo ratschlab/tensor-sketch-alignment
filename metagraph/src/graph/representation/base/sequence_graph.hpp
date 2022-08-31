@@ -178,8 +178,8 @@ class DeBruijnGraph : public SequenceGraph {
                                   uint32_t n_times_sketch,
                                   uint32_t num_threads);
     mutable std::unordered_map<node_index, node_index> debugmap;
-    faiss::IndexHNSWSQ *index_;
-    /* faiss::IndexHNSW *index_; */
+    /* faiss::IndexHNSWSQ *index_; */
+    faiss::IndexHNSW *index_;
     faiss::IndexIDMap2 *index;
     /* faiss::IndexHNSWFlat *quantizer; */
     /* faiss::IndexIVFFlat *index; */

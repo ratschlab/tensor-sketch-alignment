@@ -38,6 +38,8 @@ Config::Config(int argc, char *argv[]) {
     // parse identity from first command line argument
     if (!strcmp(argv[1], "build")) {
         identity = BUILD;
+    } else if (!strcmp(argv[1], "seqgen")) {
+        identity = SEQGEN;
     } else if (!strcmp(argv[1], "clean")) {
         identity = CLEAN;
     } else if (!strcmp(argv[1], "merge")) {
@@ -90,7 +92,7 @@ Config::Config(int argc, char *argv[]) {
     }
 
     // provide help screen for chosen identity
-    if (argc == 2) {
+    if (argc == 2 && identity != SEQGEN) {
         print_usage(argv[0], identity);
         exit(-1);
     }
@@ -443,7 +445,10 @@ Config::Config(int argc, char *argv[]) {
                 fprintf(stderr, "\nERROR: Cannot use input file with --experiment\n\n");
                 exit(-1);
             }
-            fnames.push_back(argv[i]);
+            if (identity == SEQGEN) {
+                fnames.push_back("placeholder");
+            } else
+                fnames.push_back(argv[i]);
         }
     }
 
@@ -1362,6 +1367,9 @@ if (advanced) {
             // fprintf(stderr, "\t-d --distance [INT] \tmax allowed alignment distance [0]\n");
             fprintf(stderr, "\t-p --parallel [INT] \tmaximum number of parallel connections [1]\n");
             // fprintf(stderr, "\t   --cache-size [INT] \tnumber of uncompressed rows to store in the cache [0]\n");
+        } break;
+        case SEQGEN: {
+            fprintf(stderr, "Usage: generates sequences\n");
         } break;
     }
 

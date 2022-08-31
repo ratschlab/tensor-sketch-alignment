@@ -4,6 +4,7 @@
 #include "common/algorithms.hpp"
 #include "cli/config/config.hpp"
 #include "cli/build.hpp"
+#include "cli/seqgen.hpp"
 #include "cli/annotate.hpp"
 #include "cli/stats.hpp"
 #include "cli/augment.hpp"
@@ -35,6 +36,9 @@ int main(int argc, char *argv[]) {
     logger->trace("Metagraph started");
 
     switch (config->identity) {
+        case Config::SEQGEN:
+            return cli::generate_sequences(config.get());
+        
         case Config::BUILD:
             return cli::build_graph(config.get());
 

@@ -21,7 +21,7 @@ class Config {
 
     // Sketches
     bool experiment = false;
-    std::string output_path = "/Users/alex/metagraph/metagraph/experiments/sketching/data/";
+    std::string output_path = "/home/alex/metagraph/metagraph/experiments/sketching/data/";
     std::string seeder = "default";
     using kmer_type = uint64_t;
     using seq_type = uint8_t;
@@ -209,6 +209,7 @@ class Config {
         RELAX_BRWT,
         QUERY,
         SERVER_QUERY,
+        SEQGEN
     };
     IdentityType identity = NO_IDENTITY;
 
