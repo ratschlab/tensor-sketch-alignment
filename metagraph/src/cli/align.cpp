@@ -515,6 +515,9 @@ int align_to_graph(Config *config) {
     // compute sketches
 
     if (config->seeder == "sketch") {
+        aligner_config.free_front_deletion = true;
+        aligner_config.left_end_bonus = 0;
+        aligner_config.right_end_bonus = 0;
         graph->compute_sketches(aligner_config.kmer_word_size,
                                 aligner_config.embed_dim,
                                 aligner_config.tuple_length,
