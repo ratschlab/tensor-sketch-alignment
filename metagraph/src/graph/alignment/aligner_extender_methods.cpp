@@ -451,7 +451,8 @@ std::vector<Alignment> DefaultColumnExtender::extend(score_t min_path_score,
 
     // initialize the root of the tree
     table.emplace_back(DPTColumn::create(
-            1, this->seed_->get_nodes().front(), static_cast<size_t>(-1),
+            (config_.free_front_deletion ? window.size() : 0) + 1,
+            this->seed_->get_nodes().front(), static_cast<size_t>(-1),
             '\0', seed_offset, 0, 0, 0u, 0));
 
     {
@@ -614,6 +615,13 @@ std::vector<Alignment> DefaultColumnExtender::extend(score_t min_path_score,
                               S, E, F,
                               profile_score_[KmerExtractorBOSS::encode(c)].data() + start + trim,
                               xdrop_cutoff, config_, score, offset);
+
+                if (!trim && config_.free_front_deletion) {
+                    if (F[0] < 0) {
+                        F[0] = 0;
+                        S[0] = 0;
+                    }
+                }
 
                 extend_ins_end(S, E, F, window.size() + 1 - trim, xdrop_cutoff, config_);
 
@@ -977,12 +985,17 @@ std::vector<Alignment> DefaultColumnExtender::backtrack(score_t min_path_score,
                     const auto &[S_p, E_p, F_p, node_p, j_prev_p, c_p, offset_p, max_pos_p, trim_p,
                                  xdrop_cutoff_i_p, score_cur_p] = table[j_prev];
 
-                    align_offset = std::min(offset, k_minus_1);
-
                     assert(pos >= trim_p);
 
                     assert(F[pos - trim] == F_p[pos - trim_p] + score_cur + config_.gap_extension_penalty
                         || F[pos - trim] == S_p[pos - trim_p] + score_cur + config_.gap_opening_penalty);
+
+                    // if the deletion happened at the 0-th position, and the deletion
+                    // resulted in a score of 0, then we are at the beginning
+                    if (!pos && F[0] == score_cur && F_p[0] == score_cur)
+                        break;
+
+                    align_offset = std::min(offset, k_minus_1);
 
                     last_op = F[pos - trim] == F_p[pos - trim_p] + score_cur + config_.gap_extension_penalty
                         ? Cigar::DELETION
