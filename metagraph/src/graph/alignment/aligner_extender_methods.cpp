@@ -451,7 +451,7 @@ std::vector<Alignment> DefaultColumnExtender::extend(score_t min_path_score,
 
     // initialize the root of the tree
     table.emplace_back(DPTColumn::create(
-            (config_.free_front_deletion ? window.size() : 0) + 1,
+            std::min(window.size(), static_cast<size_t>(config_.max_num_free_indels)) + 1,
             this->seed_->get_nodes().front(), static_cast<size_t>(-1),
             '\0', seed_offset, 0, 0, 0u, 0));
 
@@ -459,7 +459,7 @@ std::vector<Alignment> DefaultColumnExtender::extend(score_t min_path_score,
         auto &[S, E, F, node, i_prev, c, offset, max_pos, trim,
                xdrop_cutoff_i, score] = table[0];
         S[0] = config_.left_end_bonus && !seed_->get_clipping() ? config_.left_end_bonus : 0;
-        if (config_.free_front_deletion)
+        if (config_.max_num_free_indels)
             F[0] = 0;
 
         extend_ins_end(S, E, F, window.size() + 1 - trim,
@@ -602,6 +602,8 @@ std::vector<Alignment> DefaultColumnExtender::extend(score_t min_path_score,
                 auto &[S, E, F, node_cur, i_cur, c_stored, offset, max_pos, trim,
                        xdrop_cutoff_i, score_cur] = table.back();
 
+                assert(trim >= trim_prev);
+
                 score_t &xdrop_cutoff = xdrop_cutoffs_[xdrop_cutoff_i].second;
 
                 assert(i_cur == i);
@@ -619,10 +621,13 @@ std::vector<Alignment> DefaultColumnExtender::extend(score_t min_path_score,
                               profile_score_[KmerExtractorBOSS::encode(c)].data() + start + trim,
                               xdrop_cutoff, config_, score, offset);
 
-                if (!trim && config_.free_front_deletion) {
-                    if (F[0] - score_cur < 0) {
-                        F[0] = score_cur;
-                        S[0] = score_cur;
+                if (!trim) {
+                    if (offset - seed_offset <= config_.max_num_free_indels) {
+                        F[0] = F_prev[0] + score_cur;
+                        S[0] = F[0];
+                    } else if (offset - seed_offset == config_.max_num_free_indels + 1) {
+                        F[0] = F_prev[0] + score_cur + config_.gap_opening_penalty;
+                        S[0] = F[0];
                     }
                 }
 
@@ -992,7 +997,8 @@ std::vector<Alignment> DefaultColumnExtender::backtrack(score_t min_path_score,
 
                     // if the deletion happened at the 0-th position, and the deletion
                     // resulted in a score of 0, then we are at the beginning
-                    if (!pos && F[0] == score_cur && F_p[0] == score_cur) {
+                    if (!pos && F[0] == score_cur && F_p[0] == score_cur_p) {
+                        extra_score += score_cur;
                         j = 0;
                         break;
                     }
