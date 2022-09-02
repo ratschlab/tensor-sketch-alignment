@@ -1,4 +1,7 @@
 .cache/
+*.fasta
+real_genomes/
+*.pkl
 *.png
 data/
 runs/
