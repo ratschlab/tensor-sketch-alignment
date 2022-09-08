@@ -216,7 +216,8 @@ void update_column(size_t prev_end,
                    const DBGAlignerConfig &config_,
                    score_t init_score,
                    size_t offset) {
-#ifndef __SSE4_1__
+/* #ifndef __SSE4_1__ */
+#if 1 
     for (size_t j = 0; j < prev_end; ++j) {
         score_t match = j ? (S_prev_v[j - 1] + profile_scores[j] + init_score) : ninf;
         if (offset > 1) {
@@ -706,9 +707,9 @@ std::vector<Alignment> DefaultColumnExtender::extend(score_t min_path_score,
 
                 if (!in_seed && !has_extension) {
                     DEBUG_LOG("Position {}: no extension possible from score {}. "
-                              "Best score so far is {}",
+                              "Best score so far is {}, my stuff {}, {}",
                               next_offset - seed_->get_offset(), max_val,
-                              best_score);
+                              best_score, in_seed, has_extension);
                     pop(table.size() - 1);
                     if (forked_xdrop)
                         xdrop_cutoffs_.pop_back();
@@ -841,10 +842,12 @@ std::vector<Alignment> DefaultColumnExtender::backtrack(score_t min_path_score,
                          xdrop_cutoff_i_p, score_p] = table[j_prev];
             if (start_pos < trim_p + 1)
                 return;
-
             size_t pos = start_pos - trim;
             size_t pos_p = start_pos - trim_p - 1;
 
+            if (start_pos == last_pos) {
+                DEBUG_LOG("start_pos==end_pos: {}, pos: {}, S[pos]: {}", start_pos, pos, S[pos]);
+            }
             if (S[pos] == ninf || S_p[pos_p] == ninf)
                 return;
 

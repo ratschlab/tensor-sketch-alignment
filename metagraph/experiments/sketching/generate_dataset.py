@@ -105,7 +105,9 @@ if __name__ == '__main__':
     open(f"{blunted_dbg_output}.gfa", 'w').write(blunted_graph)
    
     # Build vg index
-    vg_command = f"{vg_path} autoindex -g data/sequence_{K}_blunted.gfa -V 2 -w map --prefix data/sequence"
+    vg_command = f"{vg_path} autoindex -g data/sequence_{K}_blunted.gfa -V 2 -w map --prefix data/sequence_map"
     subprocess.run(vg_command.split())
     
+    # vg_command = f"{vg_path} autoindex -g data/sequence_{K}_blunted.gfa -V 2 -w mpmap --prefix data/sequence_mpmap"
+    # subprocess.run(vg_command.split())
     print("Done")

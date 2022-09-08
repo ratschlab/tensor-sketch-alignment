@@ -37,10 +37,12 @@ using seq_type = uint8_t;
 string mutate(string s, int mutation_rate, std::vector<char> alphabet) {
     std::string mutated_string;
     uint32_t counter = 0;
-    uint32_t thresh1 = 10;
-    uint32_t thresh2 = 80;
+    uint32_t thresh1 = 33;
+    uint32_t thresh2 = 66;
+    uint32_t nmutations = 0;
     while (counter < s.size()) {
         if (rand() % 100 < mutation_rate) {
+            nmutations += 1;
             uint32_t chance = rand() % 100;
             if (chance <= thresh1) {
                 // substitution
@@ -66,6 +68,7 @@ string mutate(string s, int mutation_rate, std::vector<char> alphabet) {
             counter++;
         }
     }
+
     return mutated_string;
 }
 

@@ -372,8 +372,8 @@ int align_to_graph(Config *config) {
 
     if (config->seeder == "sketch") {
         aligner_config.max_num_free_indels = 6;
-        aligner_config.left_end_bonus = 0;
-        aligner_config.right_end_bonus = 0;
+        aligner_config.left_end_bonus = 5;
+        aligner_config.right_end_bonus = 5;
         graph->compute_sketches(aligner_config.kmer_word_size,
                                 aligner_config.embed_dim,
                                 aligner_config.tuple_length,
