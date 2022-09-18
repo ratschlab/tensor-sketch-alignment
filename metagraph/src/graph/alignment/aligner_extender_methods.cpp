@@ -216,8 +216,7 @@ void update_column(size_t prev_end,
                    const DBGAlignerConfig &config_,
                    score_t init_score,
                    size_t offset) {
-/* #ifndef __SSE4_1__ */
-#if 1 
+#ifndef __SSE4_1__
     for (size_t j = 0; j < prev_end; ++j) {
         score_t match = j ? (S_prev_v[j - 1] + profile_scores[j] + init_score) : ninf;
         if (offset > 1) {
@@ -848,6 +847,7 @@ std::vector<Alignment> DefaultColumnExtender::backtrack(score_t min_path_score,
             if (start_pos == last_pos) {
                 DEBUG_LOG("start_pos==end_pos: {}, pos: {}, S[pos]: {}", start_pos, pos, S[pos]);
             }
+
             if (S[pos] == ninf || S_p[pos_p] == ninf)
                 return;
 
@@ -909,8 +909,8 @@ std::vector<Alignment> DefaultColumnExtender::backtrack(score_t min_path_score,
         std::string seq;
         score_t score = start_score;
 
-        if (score - min_cell_score_ < best_score)
-            break;
+        /* if (score - min_cell_score_ < best_score) */
+        /*     break; */
 
         ++num_backtracks;
 
@@ -1027,13 +1027,15 @@ std::vector<Alignment> DefaultColumnExtender::backtrack(score_t min_path_score,
                 break;
             }
         }
-
+        DEBUG_LOG("trace.size(): {}, min_trace_length: {}, path.size(): {}", trace.size(), min_trace_length, path.size());
         if (trace.size() >= min_trace_length && path.size() && path.back()) {
             assert(!dummy_counter);
             score_t cur_cell_score = table[j].S[pos - table[j].trim];
             best_score = std::max(best_score, score - cur_cell_score);
-            if (score - min_cell_score_ < best_score)
-                break;
+            DEBUG_LOG("score: {}, min_cell_score: {}, best_score: {}", score, min_cell_score_, best_score);
+            /* if (score - min_cell_score_ < best_score) */
+            /*     break; */
+            DEBUG_LOG("Score: {}, min_cell_score: {}, cur_cell_score: {}, best_score: {}", score, min_start_score, cur_cell_score, best_score);
 
             if (score >= min_start_score
                     && (!pos || cur_cell_score == 0)

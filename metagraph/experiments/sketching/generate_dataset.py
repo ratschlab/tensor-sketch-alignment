@@ -65,27 +65,29 @@ if __name__ == '__main__':
     assert os.path.exists(DATASET_DIR), "Please create dataset directory"
     
     if GENOME_SEQ is not None:
+        print("Genome seq is set")
         graph_seq = open(os.path.join(DATASET_DIR, GENOME_SEQ), 'r').read()
+        graph_seq_path = os.path.join(DATASET_DIR, GENOME_SEQ)
+        print(f"Path: {graph_seq_path}")
     else:
         print("Generating random string because GENOME_SEQ is None")
         graph_seq = "".join(np.random.choice(['A', 'C', 'T', 'G'], args.graph_seq_len))
-    seqs = [graph_seq]
-    
-    for i in range(args.num_levels):
-        new_seqs = []
-        for seq in seqs:
-            new_s = mutate(seq, args.mutation_rate)
-            new_seqs.append(new_s)
-        seqs += new_seqs
-    print(f"#Sequences: {len(seqs)}")
-    seq_file = []
-    for i in range(len(seqs)):
-        header = f">Sequence{i}"
-        seq_file += [header, seqs[i]]
+        seqs = [graph_seq]
+        for i in range(args.num_levels):
+            new_seqs = []
+            for seq in seqs:
+                new_s = mutate(seq, args.mutation_rate)
+                new_seqs.append(new_s)
+            seqs += new_seqs
+        print(f"#Sequences: {len(seqs)}")
+        seq_file = []
+        for i in range(len(seqs)):
+            header = f">Sequence{i}"
+            seq_file += [header, seqs[i]]
 
-    seq_output = '\n'.join(seq_file).strip()
-    with open(os.path.join(DATASET_DIR, INPUT_SEQ), 'w') as f:
-        f.write(seq_output)
+        seq_output = '\n'.join(seq_file).strip()
+        with open(os.path.join(DATASET_DIR, INPUT_SEQ), 'w') as f:
+            f.write(seq_output)
     print("Done with the sequences")
     # make_vg()
    
@@ -104,10 +106,13 @@ if __name__ == '__main__':
     blunted_graph = subprocess.run(blunt_command.split(), capture_output=True).stdout.decode("utf-8")
     open(f"{blunted_dbg_output}.gfa", 'w').write(blunted_graph)
    
-    # Build vg index
+    # Build xg index
     vg_command = f"{vg_path} autoindex -g data/sequence_{K}_blunted.gfa -V 2 -w map --prefix data/sequence_map"
     subprocess.run(vg_command.split())
     
-    # vg_command = f"{vg_path} autoindex -g data/sequence_{K}_blunted.gfa -V 2 -w mpmap --prefix data/sequence_mpmap"
-    # subprocess.run(vg_command.split())
+    # Convert xg index to vg for extracting the paths later
+    f = open("data/sequence_map.vg", 'w')
+    vg_command = f"{vg_path} convert data/sequence_map.xg -p"
+    subprocess.run(vg_command.split(), stdout=f)
+    f.close()
     print("Done")

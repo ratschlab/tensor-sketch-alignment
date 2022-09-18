@@ -628,7 +628,9 @@ DBGAligner<Seeder, Extender, AlignmentCompare>
             auto extensions = fwd_extender.get_extensions(seeds[i], min_path_score, false);
 
             std::vector<Alignment> rc_of_alignments;
+            DEBUG_LOG("Num extensions: {}", extensions.size());
             for (Alignment &path : extensions) {
+                DEBUG_LOG("Path: {}", path);
                 if (path.get_score() >= get_min_path_score(path)) {
                     if (is_reversible(path)) {
                         Alignment out_path = path;

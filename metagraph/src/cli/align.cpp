@@ -3,7 +3,8 @@
 #include <tsl/ordered_set.h>
 #include <random>
 #include <unordered_set>
-
+#include <chrono>
+#include <thread>
 #include "common/logger.hpp"
 #include "common/unix_tools.hpp"
 #include "common/threads/threading.hpp"
@@ -372,13 +373,15 @@ int align_to_graph(Config *config) {
 
     if (config->seeder == "sketch") {
         aligner_config.max_num_free_indels = 6;
-        aligner_config.left_end_bonus = 5;
-        aligner_config.right_end_bonus = 5;
+        aligner_config.left_end_bonus = 0;
+        aligner_config.right_end_bonus = 0;
         graph->compute_sketches(aligner_config.kmer_word_size,
                                 aligner_config.embed_dim,
                                 aligner_config.tuple_length,
                                 aligner_config.n_times_sketch,
                                 get_num_threads());
+        /* std::cout << "Sleeping" << std::endl; */
+        /* std::this_thread::sleep_for(std::chrono::seconds(15)); */
     }
     std::unique_ptr<AnnotatedDBG> anno_dbg;
     if (config->infbase_annotators.size()) {

@@ -1,4 +1,5 @@
 .cache/
+*.pdf
 *.fasta
 real_genomes/
 *.pkl
