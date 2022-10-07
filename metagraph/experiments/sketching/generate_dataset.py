@@ -87,7 +87,7 @@ if __name__ == '__main__':
             f.write(seq_output)
     print("Done with the sequences")
     # Generate graph
-    build_command = f"{METAGRAPH_PATH} build -k {K} --parallel 20 -o {dbg_output}.dbg {graph_seq_path}"
+    build_command = f"{METAGRAPH_PATH} build -k {K} --parallel 8 -o {dbg_output}.dbg {graph_seq_path}"
     print(build_command)
     subprocess.run(build_command.split())
     print(f"[LOG] Saved .dbg file from generated sequence - {K}")
@@ -97,17 +97,17 @@ if __name__ == '__main__':
     subprocess.run(assemble_command.split())
    
     # Blunt graph
-    blunt_command = f"{get_blunted_path} --input_gfa {dbg_output}.gfa"
-    blunted_graph = subprocess.run(blunt_command.split(), capture_output=True).stdout.decode("utf-8")
-    open(f"{blunted_dbg_output}.gfa", 'w').write(blunted_graph)
+    #blunt_command = f"{get_blunted_path} --input_gfa {dbg_output}.gfa"
+    #blunted_graph = subprocess.run(blunt_command.split(), capture_output=True).stdout.decode("utf-8")
+    #open(f"{blunted_dbg_output}.gfa", 'w').write(blunted_graph)
    
     # Build xg index
-    vg_command = f"{vg_path} autoindex -T /cluster/work/grlab/ameterez/temp/ -g {DATASET_DIR}/sequence_{K}_blunted.gfa -V 2 -w map --prefix {DATASET_DIR}/sequence_map"
-    subprocess.run(vg_command.split())
+    #vg_command = f"{vg_path} autoindex -T /cluster/work/grlab/ameterez/temp/ -g {DATASET_DIR}/sequence_{K}_blunted.gfa -V 2 -w map --prefix {DATASET_DIR}/sequence_map"
+    #subprocess.run(vg_command.split())
     
     # Convert xg index to vg for extracting the paths later
-    f = open(f"{DATASET_DIR}/sequence_map.vg", 'w')
-    vg_command = f"{vg_path} convert {DATASET_DIR}/sequence_map.xg -p"
-    subprocess.run(vg_command.split(), stdout=f)
-    f.close()
+    #f = open(f"{DATASET_DIR}/sequence_map.vg", 'w')
+    #vg_command = f"{vg_path} convert {DATASET_DIR}/sequence_map.xg -p"
+    #subprocess.run(vg_command.split(), stdout=f)
+    #f.close()
     print("Done")

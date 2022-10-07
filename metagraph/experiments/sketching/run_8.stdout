@@ -7,6 +7,6 @@ Graph seq path: /cluster/work/grlab/ameterez/sketch_data/data_8/sequence.fa
 Generating random string because GENOME_SEQ is None
 #Sequences: 256
 Done with the sequences
-/cluster/apps/biomed/grlab/ameterez/metagraph/metagraph/build/metagraph build -k 80 --parallel 20 -o /cluster/work/grlab/ameterez/sketch_data/data_8/sequence_80.dbg /cluster/work/grlab/ameterez/sketch_data/data_8/sequence.fa
+/cluster/apps/biomed/grlab/ameterez/metagraph/metagraph/build/metagraph build -k 80 --parallel 8 -o /cluster/work/grlab/ameterez/sketch_data/data_8/sequence_80.dbg /cluster/work/grlab/ameterez/sketch_data/data_8/sequence.fa
 [LOG] Saved .dbg file from generated sequence - 80
 Done

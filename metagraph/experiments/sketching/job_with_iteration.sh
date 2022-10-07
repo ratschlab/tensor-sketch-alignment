@@ -1,8 +1,8 @@
 #!/bin/bash
 
-for dataset_dir in 500 1000 5000 10000 50000 100000 500000 1000000 5000000 10000000
+for method in "sketch" "default" "graphaligner"
 do
-	for method in "map" "mpmap" "sketch" "default" "graphaligner"
+	for dataset_dir in 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
 	do
 		for mutation in 0 5 10 15 20 25
 		do

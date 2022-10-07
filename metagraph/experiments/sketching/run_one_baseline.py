@@ -15,8 +15,6 @@ import edlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import argparse
-
-#METAGRAPH_PATH = "/home/alex/metagraph/metagraph/build/metagraph"
 #ASTARIX_PATH = "/home/alex/benchmark/datagen/astarix/release/astarix"
 #VG_PATH = "/home/alex/benchmark/datagen/vg_source/vg/bin/vg"
 #MINIGRAPH_PATH = "/home/alex/benchmark/datagen/minigraph/minigraph"
@@ -31,24 +29,35 @@ MUTATIONS = [0, 5, 10, 15, 20, 25]
 THRESHOLDS = [0.05, 0.1]
 NUM_QUERY_SEQS = 500
 
+def rc(s):
+    tab = str.maketrans("ACGT", "TGCA")
+    return s.translate(tab)[::-1]
+
 def vg_get_node_path_spelling(path, xg_file):
     pattern = ">\d+|\d+<"
     # >123>124>125
     nodes = re.findall(pattern, path.strip())
-    full_spelling = "" 
+    full_spelling = ""
+    reverse = False
     for node in nodes:
+        import pdb
+#        pdb.set_trace()
         if node[0] == '>':
             node = node[1:]
         elif node[-1] == '<':
             node = node[:-1]
+            reverse=True
         command = f"{VG_PATH} find -x {xg_file} -n {node}"
         ret = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
         command = f"{VG_PATH} view -j -"
         ret = subprocess.Popen(command.split(), stdin = ret.stdout, stdout = subprocess.PIPE)
         output = ret.communicate()[0]
+#        print(output)
         spelling = json.loads(output)['node'][0]['sequence']
-
-        full_spelling += spelling.strip()
+#        print(f"{node} -- {spelling.strip()}")
+        full_spelling += rc(spelling.strip())
+#    if reverse:
+#        full_spelling = rc(full_spelling)
     return full_spelling
 def read_seqs(path):
     lines = open(path, 'r').readlines()
@@ -191,7 +200,7 @@ def run_vg_mpmap(mr):
         if len(parts) < 13:
             continue
         start = int(parts[7])
-        end = int(parts[8])
+        end = int(parts[8]) + 1
         path_spelling = vg_get_node_path_spelling(parts[5], f"{DATASET_DIR}/sequence_map.xg")[start:end]
         seq_idx = parts[0]
         seq_idx_num = int(seq_idx[1:])
@@ -219,7 +228,6 @@ def run_vg_map(mr):
     time_end = mytime.time()
     f.close()
     g.close()
-
     g = open(f"{DATASET_DIR}/tmp_map_{mr}", 'r')
     result_ = g.read()
     g.close()
@@ -230,7 +238,7 @@ def run_vg_map(mr):
         if len(parts) < 13:
             continue
         start = int(parts[7])
-        end = int(parts[8])
+        end = int(parts[8]) + 1
         path_spelling = vg_get_node_path_spelling(parts[5], f"{DATASET_DIR}/sequence_map.xg")[start:end]
         seq_idx = parts[0]
         seq_idx_num = int(seq_idx[1:])
@@ -257,7 +265,7 @@ if __name__ == '__main__':
 
     DATASET_DIR = args.dataset_dir
     suffix = args.suffix
-    assert args.mutation in MUTATIONS
+    #assert args.mutation in MUTATIONS
 
     method_scores = None
     method_times = None
