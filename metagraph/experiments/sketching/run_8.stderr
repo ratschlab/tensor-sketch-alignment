@@ -1,0 +1,23 @@
+[vg autoindex] Executing command: /cluster/apps/biomed/grlab/ameterez/vg autoindex -T /cluster/work/grlab/ameterez/temp/ -g /cluster/work/grlab/ameterez/sketch_data/data_8/sequence_80_blunted.gfa -V 2 -w map --prefix /cluster/work/grlab/ameterez/sketch_data/data_8/sequence_map
+[IndexRegistry]: Checking for haplotype lines in GFA.
+[IndexRegistry]: Provided: Reference GFA
+[IndexRegistry]: Constructing VG graph from GFA input.
+[IndexRegistry]: Constructing XG graph from VG graph.
+[IndexRegistry]: Pruning complex regions of VG to prepare for GCSA indexing.
+[IndexRegistry]: Constructing GCSA/LCP indexes.
+InputGraph::InputGraph(): 612102 kmers in 1 file(s)
+InputGraph::readKeys(): 104373 unique keys
+InputGraph::readFrom(): 461399 unique start nodes
+GCSA::GCSA(): Prefix-doubling from path length 16
+GCSA::GCSA(): Step 1 (path length 16 -> 32)
+GCSA::GCSA(): Step 2 (path length 32 -> 64)
+GCSA::GCSA(): Step 3 (path length 64 -> 128)
+GCSA::GCSA(): Step 4 (path length 128 -> 256)
+GCSA::GCSA(): Merging the paths
+GCSA::GCSA(): Building the index
+GCSA::GCSA(): 355968 paths, 364331 edges
+GCSA::GCSA(): 643823 pointers (182424 redundant)
+GCSA::GCSA(): 94469 samples at 29265 positions
+LCPArray::LCPArray(): 361620 values at 5 levels (branching factor 64)
+Saving GCSA to /cluster/work/grlab/ameterez/sketch_data/data_8/sequence_map.gcsa
+Saving LCP to /cluster/work/grlab/ameterez/sketch_data/data_8/sequence_map.gcsa.lcp
