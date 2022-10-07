@@ -9,17 +9,12 @@ def get_random_str(main_str, substr_len):
     idx = random.randrange(0, len(main_str) - substr_len + 1)
     return main_str[idx:(idx+substr_len)]
 
-def make_vg():
-    command1 = f"{vg_path} construct -r data/sequence.fa"
-    f = open("data/sequence.vg", 'w')
-    subprocess.run(command1.split(), stdout=f)
-    command2 = f"{vg_path} index -x data/sequence.xg -g data/sequence.gcsa -k 16 data/sequence.vg"
-    subprocess.run(command2.split())
+DATASET_DIR = None 
+#get_blunted_path = "/home/alex/benchmark/datagen/GetBlunted/build/get_blunted"
+#vg_path = "/home/alex/benchmark/datagen/vg"
 
-DATASET_DIR = "./data"
-get_blunted_path = "/home/alex/benchmark/datagen/GetBlunted/build/get_blunted"
-vg_path = "/home/alex/benchmark/datagen/vg"
-
+get_blunted_path = "/cluster/apps/biomed/grlab/ameterez/GetBlunted/build/get_blunted"
+vg_path = "/cluster/apps/biomed/grlab/ameterez/vg"
 # Clean up
 # shutil.rmtree(DATASET_DIR)
 # os.mkdir(DATASET_DIR)
@@ -41,15 +36,17 @@ def mutate(s, rate):
     return mutated_string
 
 if __name__ == '__main__':
-    assert os.path.exists(vg_path)
-    assert os.path.exists(get_blunted_path)
+    assert os.path.exists(vg_path), print(vg_path)
+    assert os.path.exists(get_blunted_path), print(get_blunted_path)
     parser = argparse.ArgumentParser()
     parser.add_argument("--metagraph-path", type=str, required=True, help="Path to metagraph executable")
     parser.add_argument("--graph-seq-len", type=int, required=True, help="Length of the seq that the graph is generated from")
     parser.add_argument("--num-levels", type=int, required=True, help="Number of seqs")
     parser.add_argument("--mutation-rate", type=float, required=True, help="Mutation rate of the sequences")
+    parser.add_argument("--dataset-dir", type=str, required=True)
     args = parser.parse_args()
-
+    DATASET_DIR = args.dataset_dir
+    print(DATASET_DIR)
     METAGRAPH_PATH = args.metagraph_path
     GRAPH_SEQ_LEN = args.graph_seq_len
     K = 80 
@@ -89,8 +86,6 @@ if __name__ == '__main__':
         with open(os.path.join(DATASET_DIR, INPUT_SEQ), 'w') as f:
             f.write(seq_output)
     print("Done with the sequences")
-    # make_vg()
-   
     # Generate graph
     build_command = f"{METAGRAPH_PATH} build -k {K} --parallel 20 -o {dbg_output}.dbg {graph_seq_path}"
     print(build_command)
@@ -107,12 +102,12 @@ if __name__ == '__main__':
     open(f"{blunted_dbg_output}.gfa", 'w').write(blunted_graph)
    
     # Build xg index
-    vg_command = f"{vg_path} autoindex -g data/sequence_{K}_blunted.gfa -V 2 -w map --prefix data/sequence_map"
+    vg_command = f"{vg_path} autoindex -T /cluster/work/grlab/ameterez/temp/ -g {DATASET_DIR}/sequence_{K}_blunted.gfa -V 2 -w map --prefix {DATASET_DIR}/sequence_map"
     subprocess.run(vg_command.split())
     
     # Convert xg index to vg for extracting the paths later
-    f = open("data/sequence_map.vg", 'w')
-    vg_command = f"{vg_path} convert data/sequence_map.xg -p"
+    f = open(f"{DATASET_DIR}/sequence_map.vg", 'w')
+    vg_command = f"{vg_path} convert {DATASET_DIR}/sequence_map.xg -p"
     subprocess.run(vg_command.split(), stdout=f)
     f.close()
     print("Done")

@@ -11,6 +11,11 @@ project(MetaGraph
   DESCRIPTION "A tool for scalable construction of annotated genome graphs and sequence-to-graph alignment"
 )
 find_package(OpenMP REQUIRED)
+set(BLA_VENDOR Intel10_64_dyn)
+find_package(BLAS REQUIRED)
+find_package(LAPACK REQUIRED)
+include_directories(${BLAS_INCLUDE_DIRS})
+include_directories(${LAPACK_INCLUDE_DIRS})
 
 include_directories(.)
 
@@ -18,9 +23,9 @@ include_directories(.)
 
 # FAISS
 include_directories(external-libraries/faiss)
-include_directories(/home/alex/.linuxbrew/Cellar/openblas/0.3.20/include)
+#include_directories(/home/alex/.linuxbrew/Cellar/openblas/0.3.20/include)
 link_directories(external-libraries/faiss/build/faiss)
-link_directories(/home/alex/.linuxbrew/Cellar/openblas/0.3.20/lib)
+#link_directories(/home/alex/.linuxbrew/Cellar/openblas/0.3.20/lib)
 # Google Flags Library
 add_subdirectory(${PROJECT_SOURCE_DIR}/src/third_party/gflags EXCLUDE_FROM_ALL)
 
@@ -492,9 +497,9 @@ if(NOT CPPNOFS)
   endif()
 endif()
 
-target_link_libraries(metagraph-core ${METALIBS} sequence util sketch_lib faiss blas lapack)
-target_link_libraries(metagraph-cli PRIVATE metagraph-core sequence util sketch_lib faiss blas lapack)
-target_link_libraries(metagraph metagraph-core metagraph-cli sequence util sketch_lib faiss blas lapack)
+target_link_libraries(metagraph-core ${METALIBS} sequence util sketch_lib faiss ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
+target_link_libraries(metagraph-cli PRIVATE metagraph-core sequence util sketch_lib faiss ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
+target_link_libraries(metagraph metagraph-core metagraph-cli sequence util sketch_lib faiss ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
 
 add_custom_target(link_target ALL
   COMMAND ${CMAKE_COMMAND} -E

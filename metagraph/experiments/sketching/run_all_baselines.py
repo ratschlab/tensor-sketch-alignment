@@ -2,11 +2,9 @@ import re
 import csv
 import time as mytime
 import plotly.graph_objects as go
-import multiprocessing
 import json
 from plotly.subplots import make_subplots
 import argparse
-import parasail
 import os
 import subprocess
 import numpy as np
@@ -18,11 +16,16 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import argparse
 
-METAGRAPH_PATH = "/home/alex/metagraph/metagraph/build/metagraph"
-ASTARIX_PATH = "/home/alex/benchmark/datagen/astarix/release/astarix"
-VG_PATH = "/home/alex/benchmark/datagen/vg_source/vg/bin/vg"
-MINIGRAPH_PATH = "/home/alex/benchmark/datagen/minigraph/minigraph"
-DATASET_DIR = "/home/alex/metagraph/metagraph/experiments/sketching/data/"
+#METAGRAPH_PATH = "/home/alex/metagraph/metagraph/build/metagraph"
+#ASTARIX_PATH = "/home/alex/benchmark/datagen/astarix/release/astarix"
+#VG_PATH = "/home/alex/benchmark/datagen/vg_source/vg/bin/vg"
+#MINIGRAPH_PATH = "/home/alex/benchmark/datagen/minigraph/minigraph"
+#DATASET_DIR = "/home/alex/metagraph/metagraph/experiments/sketching/data/"
+
+NUM_THREADS = 8
+METAGRAPH_PATH = "/cluster/apps/biomed/grlab/ameterez/metagraph/metagraph/build/metagraph"
+VG_PATH = "/cluster/apps/biomed/grlab/ameterez/vg"
+DATASET_DIR = None 
 K = 80
 MUTATIONS = [0, 5, 10, 15, 20, 25]
 THRESHOLDS = [0.05, 0.1]
@@ -47,7 +50,6 @@ def vg_get_node_path_spelling(path, xg_file):
 
         full_spelling += spelling.strip()
     return full_spelling
-
 def read_seqs(path):
     lines = open(path, 'r').readlines()
     header_to_seq = {}
@@ -59,12 +61,6 @@ def read_seqs(path):
 
     return header_to_seq
 
-def init_scores(seqs):
-    n_seqs = len(seqs)
-    scores = []
-    for key, val in seqs.items():
-        scores.append(len(val))
-    return np.array(scores, dtype=float)
 
 def run_metagraph_default():
     print("Running Default...")
@@ -72,13 +68,12 @@ def run_metagraph_default():
     times = []
     memory = []
     for mr in tqdm(MUTATIONS):
-        ref_seqs = read_seqs(DATASET_DIR + f'reference_{mr}.fa')
-        query_seqs = read_seqs(DATASET_DIR + f'mutated_{mr}.fa')
-    
+        ref_seqs = read_seqs(os.path.join(DATASET_DIR, f'reference_{mr}.fa'))
+        query_seqs = read_seqs(os.path.join(DATASET_DIR, f'mutated_{mr}.fa'))
         scores = np.ones(NUM_QUERY_SEQS, dtype=float) 
         command = f"/usr/bin/time -f %M {METAGRAPH_PATH} align " \
                       f"--seeder default " \
-                      f"--parallel 23 " \
+                      f"--parallel {NUM_THREADS} " \
                       f"--batch-size 1000 " \
                       f"--align-min-seed-length 15 " \
                       f"--align-xdrop 5 " \
@@ -91,8 +86,6 @@ def run_metagraph_default():
         time = json.loads(result_.stdout.split('\n')[-2])['time']
         avg_length = 0.0
         for alignment in alignments:
-            import pdb
-            # pdb.set_trace()
             alignment = alignment.split('\t')
             seq_idx = alignment[0]
             seq_idx_num = int(seq_idx[1:])
@@ -112,30 +105,19 @@ def run_metagraph_sketching():
     times = []
     memory = [] 
     for mr in tqdm(MUTATIONS):
-        ref_seqs = read_seqs(DATASET_DIR + f'reference_{mr}.fa')
-        query_seqs = read_seqs(DATASET_DIR + f'mutated_{mr}.fa')
+        ref_seqs = read_seqs(os.path.join(DATASET_DIR, f'reference_{mr}.fa'))
+        query_seqs = read_seqs(os.path.join(DATASET_DIR, f'mutated_{mr}.fa'))
         scores = np.ones(NUM_QUERY_SEQS, dtype=float) 
         command = f"/usr/bin/time -f %M {METAGRAPH_PATH} align " \
                       f"--seeder sketch " \
                       f"--embed-dim 14 " \
                       f"--n-times-sketch 1 " \
-                      f"--parallel 23 " \
+                      f"--parallel {NUM_THREADS} " \
                       f"--batch-size 1000 " \
                       f"--num-neighbours 10 " \
                       f"--align-end-bonus 0 " \
                       f"-i {DATASET_DIR}/sequence_{K}.dbg " \
                       f"{DATASET_DIR}/mutated_{mr}.fa "
-        # command = f"{METAGRAPH_PATH} align " \
-        #               f"--seeder sketch " \
-        #               f"--embed-dim 14 " \
-        #               f"--n-times-sketch 1 " \
-        #               f"--parallel 23 " \
-        #               f"--batch-size 1000 " \
-        #               f"--num-neighbours 10 " \
-        #               f"--align-edit-distance " \
-        #               f"--align-end-bonus 0 " \
-        #               f"-i {DATASET_DIR}/sequence_{K}.dbg " \
-        #               f"{DATASET_DIR}/mutated_{mr}.fa "
         print(command)
         result_ = subprocess.run(command.split(), capture_output=True, text=True)
         memory.append(int(result_.stderr.strip().split("\n")[-1])/1024/1024)
@@ -150,7 +132,6 @@ def run_metagraph_sketching():
             query_seq = query_seqs[seq_idx]
             edit_distance = edlib.align(ref_seq, matched_seq, task='path')['editDistance']
             scores[seq_idx_num] = edit_distance / len(ref_seq)
-
         for threshold in THRESHOLDS:
             recalls[threshold].append(np.mean(scores <= threshold))
         times.append(time/NUM_QUERY_SEQS)
@@ -162,18 +143,17 @@ def run_graphaligner():
     times = []
     memory = []
     for mr in tqdm(MUTATIONS):
-        ref_seqs = read_seqs(DATASET_DIR + f'reference_{mr}.fa')
+        ref_seqs = read_seqs(os.path.join(DATASET_DIR, f'reference_{mr}.fa'))
         scores = np.ones(NUM_QUERY_SEQS, dtype=float) 
-       
-        # command = f"GraphAligner --precise-clipping 0.501 -g data/sequence_{K}.gfa -f data/mutated_{mr}.fa -a data/aln_{mr}.gaf -x dbg" #-x dbg"
-        command = f"/usr/bin/time -f %M GraphAligner --precise-clipping 0.501 -g data/sequence_{K}_blunted.gfa -f data/mutated_{mr}.fa -a data/aln_{mr}.gaf -x vg" #-x dbg"
+        # command = f"GraphAligner --precise-clipping 0.501 -g -t {NUM_THREADS} data/sequence_{K}.gfa -f data/mutated_{mr}.fa -a data/aln_{mr}.gaf -x dbg" #-x dbg"
+        command = f"/usr/bin/time -f %M GraphAligner --precise-clipping 0.501 -t {NUM_THREADS} -g {DATASET_DIR}/sequence_{K}_blunted.gfa -f {DATASET_DIR}/mutated_{mr}.fa -a {DATASET_DIR}/aln_{mr}.gaf -x vg" #-x dbg"
         print(command) 
         time_start = mytime.time()
         result_ = subprocess.run(command.split(), capture_output=True, text=True)
         time_end = mytime.time()
 
         memory.append(int(result_.stderr.strip().split("\n")[-1])/1024/1024)
-        alignments = csv.reader(open(f"data/aln_{mr}.gaf", 'r'), delimiter='\t')
+        alignments = csv.reader(open(f"{DATASET_DIR}/aln_{mr}.gaf", 'r'), delimiter='\t')
         for alignment in alignments:
             seq_idx = alignment[0]
             seq_idx_num = int(seq_idx[1:])
@@ -191,34 +171,32 @@ def run_vg_mpmap():
     times = []
     memory = []
     for mr in tqdm(MUTATIONS):
-        ref_seqs = read_seqs(DATASET_DIR + f'reference_{mr}.fa')
-        query_seqs = read_seqs(DATASET_DIR + f'mutated_{mr}.fa')
+        ref_seqs = read_seqs(os.path.join(DATASET_DIR, f'reference_{mr}.fa'))
+        query_seqs = read_seqs(os.path.join(DATASET_DIR, f'mutated_{mr}.fa'))
         scores = np.ones(NUM_QUERY_SEQS, dtype=float)
-        f = open(f'data/out_{mr}_mpmap.gaf','w')
-        command = f"/usr/bin/time -f %M {VG_PATH} mpmap -z 1 -o 1 -n DNA -F GAF -x data/sequence_map.xg -g data/sequence_map.gcsa -f data/mutated_{mr}.fa"
+        f = open(f'{DATASET_DIR}/out_{mr}_mpmap.gaf','w')
+        command = f"/usr/bin/time -f %M {VG_PATH} mpmap -t {NUM_THREADS} -z 1 -o 1 -n DNA -F GAF -x {DATASET_DIR}/sequence_map.xg -g {DATASET_DIR}/sequence_map.gcsa -f {DATASET_DIR}/mutated_{mr}.fa"
         print(command)
-        g = open(f'data/tmp_mpmap_{mr}', 'w')
+        g = open(f'{DATASET_DIR}/tmp_mpmap_{mr}', 'w')
         time_start = mytime.time()
         subprocess.run(command.split(), stderr=g, text=True, stdout=f)
         time_end = mytime.time()
         f.close()
         g.close()
-        g = open(f'data/tmp_mpmap_{mr}', 'r')
+        g = open(f'{DATASET_DIR}/tmp_mpmap_{mr}', 'r')
         result_ = g.read()
         g.close()
         # import pdb
         # pdb.set_trace()
         memory.append(int(result_.strip().split("\n")[-1])/1024/1024)
-        alignments = open(f"data/out_{mr}_mpmap.gaf", "r").readlines()
+        alignments = open(f"{DATASET_DIR}/out_{mr}_mpmap.gaf", "r").readlines()
         for alignment in alignments:
-            import pdb
-            # pdb.set_trace()
             parts = alignment.split("\t")
             if len(parts) < 13:
                 continue
             start = int(parts[7])
             end = int(parts[8])
-            path_spelling = vg_get_node_path_spelling(parts[5], "data/sequence_map.xg")[start:end]
+            path_spelling = vg_get_node_path_spelling(parts[5], f"{DATASET_DIR}/sequence_map.xg")[start:end]
             seq_idx = parts[0]
             seq_idx_num = int(seq_idx[1:])
             ref_seq = ref_seqs[seq_idx]
@@ -236,31 +214,31 @@ def run_vg_map():
     times = []
     memory = []
     for mr in tqdm(MUTATIONS):
-        ref_seqs = read_seqs(DATASET_DIR + f'reference_{mr}.fa')
-        query_seqs = read_seqs(DATASET_DIR + f'mutated_{mr}.fa')
+        ref_seqs = read_seqs(os.path.join(DATASET_DIR, f'reference_{mr}.fa'))
+        query_seqs = read_seqs(os.path.join(DATASET_DIR, f'mutated_{mr}.fa'))
         scores = np.ones(NUM_QUERY_SEQS, dtype=float)
-        f = open(f'data/out_{mr}_map.gaf','w')
-        command = f"/usr/bin/time -f %M {VG_PATH} map -z 1 -o 1 -x data/sequence_map.xg -g data/sequence_map.gcsa -f data/mutated_{mr}.fa --gaf"
+        f = open(f'{DATASET_DIR}/out_{mr}_map.gaf','w')
+        command = f"/usr/bin/time -f %M {VG_PATH} map -t {NUM_THREADS} -z 1 -o 1 -x {DATASET_DIR}/sequence_map.xg -g {DATASET_DIR}/sequence_map.gcsa -f {DATASET_DIR}/mutated_{mr}.fa --gaf"
         print(command)
-        g = open(f"data/tmp_map_{mr}", 'w')
+        g = open(f"{DATASET_DIR}/tmp_map_{mr}", 'w')
         time_start = mytime.time()
         subprocess.run(command.split(), stderr=g, text=True, stdout=f)
         time_end = mytime.time()
         f.close()
         g.close()
 
-        g = open(f"data/tmp_map_{mr}", 'r')
+        g = open(f"{DATASET_DIR}/tmp_map_{mr}", 'r')
         result_ = g.read()
         g.close()
         memory.append(int(result_.strip().split("\n")[-1])/1024/1024)
-        alignments = open(f"data/out_{mr}_map.gaf", "r").readlines()
+        alignments = open(f"{DATASET_DIR}/out_{mr}_map.gaf", "r").readlines()
         for alignment in alignments:
             parts = alignment.split("\t")
             if len(parts) < 13:
                 continue
             start = int(parts[7])
             end = int(parts[8])
-            path_spelling = vg_get_node_path_spelling(parts[5], "data/sequence_map.xg")[start:end]
+            path_spelling = vg_get_node_path_spelling(parts[5], f"{DATASET_DIR}/sequence_map.xg")[start:end]
             seq_idx = parts[0]
             seq_idx_num = int(seq_idx[1:])
             ref_seq = ref_seqs[seq_idx]
@@ -279,7 +257,17 @@ sns.set_theme()
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--regen", action="store_true")
+    parser.add_argument("--dataset-dir", type=str, required=True)
+
     args = parser.parse_args()
+    DATASET_DIR = args.dataset_dir
+
+    mpmap_pkl = os.path.join(DATASET_DIR, "mpmap.pkl")
+    map_pkl = os.path.join(DATASET_DIR, "map.pkl")
+    sketch_pkl = os.path.join(DATASET_DIR, "sketch.pkl")
+    default_pkl = os.path.join(DATASET_DIR, "default.pkl")
+    graphaligner_pkl = os.path.join(DATASET_DIR, "graphaligner.pkl")
+
     if args.regen:
         print("REGENERATING SEQUENCES")
         vg_mpmap_recalls, vg_mpmap_times, vg_mpmap_memory = run_vg_mpmap() 
@@ -289,20 +277,20 @@ if __name__ == '__main__':
         graphaligner_recalls, graphaligner_times, graphaligner_memory = run_graphaligner()
 
         # Save data 
-        pickle.dump([vg_mpmap_recalls, vg_mpmap_times, vg_mpmap_memory], open("mpmap.pkl", 'wb')) 
-        pickle.dump([vg_map_recalls, vg_map_times, vg_map_memory], open("map.pkl", 'wb')) 
-        pickle.dump([sketch_recalls, sketch_times, sketch_memory], open("sketch.pkl", 'wb')) 
-        pickle.dump([default_recalls, default_times, default_memory], open("default.pkl", 'wb')) 
-        pickle.dump([graphaligner_recalls, graphaligner_times, graphaligner_memory], open("graphaligner.pkl", 'wb')) 
+        pickle.dump([vg_mpmap_recalls, vg_mpmap_times, vg_mpmap_memory], open(mpmap_pkl, 'wb')) 
+        pickle.dump([vg_map_recalls, vg_map_times, vg_map_memory], open(map_pkl, 'wb')) 
+        pickle.dump([sketch_recalls, sketch_times, sketch_memory], open(sketch_pkl, 'wb')) 
+        pickle.dump([default_recalls, default_times, default_memory], open(default_pkl, 'wb')) 
+        pickle.dump([graphaligner_recalls, graphaligner_times, graphaligner_memory], open(graphaligner_pkl, 'wb')) 
     else:
         print("USING OLD SEQUENCES")
     
     linestyles = list(lines.lineStyles.keys())
-    vg_mpmap_recalls, vg_mpmap_times, vg_mpmap_memory = pickle.load(open("mpmap.pkl", "rb"))
-    vg_map_recalls, vg_map_times, vg_map_memory = pickle.load(open("map.pkl", "rb"))
-    sketch_recalls, sketch_times, sketch_memory = pickle.load(open("sketch.pkl", "rb"))
-    default_recalls, default_times, default_memory = pickle.load(open("default.pkl", "rb"))
-    graphaligner_recalls, graphaligner_times, graphaligner_memory = pickle.load(open("graphaligner.pkl", "rb"))
+    vg_mpmap_recalls, vg_mpmap_times, vg_mpmap_memory = pickle.load(open(mpmap_pkl, "rb"))
+    vg_map_recalls, vg_map_times, vg_map_memory = pickle.load(open(map_pkl, "rb"))
+    sketch_recalls, sketch_times, sketch_memory = pickle.load(open(sketch_pkl, "rb"))
+    default_recalls, default_times, default_memory = pickle.load(open(default_pkl, "rb"))
+    graphaligner_recalls, graphaligner_times, graphaligner_memory = pickle.load(open(graphaligner_pkl, "rb"))
     
     plt.figure(figsize=(20,10))
     for T_idx, T in enumerate(THRESHOLDS):
@@ -315,7 +303,7 @@ if __name__ == '__main__':
     plt.xlabel("Mutation rate")
     plt.title("Baselines")
     plt.legend()
-    plt.savefig("mutation_baselines.pdf")
+    plt.savefig(f"{DATASET_DIR}/mutation_baselines.pdf")
     plt.close()
 
     plt.figure(figsize=(20,10))
@@ -329,7 +317,7 @@ if __name__ == '__main__':
     plt.xlabel("Mutation rate")
     plt.title("Baselines")
     plt.legend()
-    plt.savefig("time_baselines.pdf")
+    plt.savefig(f"{DATASET_DIR}/time_baselines.pdf")
     plt.close()
     
     plt.figure(figsize=(20,10))
@@ -342,6 +330,6 @@ if __name__ == '__main__':
     plt.xlabel("Mutation rate")
     plt.title("Baselines")
     plt.legend()
-    plt.savefig("ram_baselines.pdf")
+    plt.savefig(f"{DATASET_DIR}/ram_baselines.pdf")
     plt.close()
     print("Done")
