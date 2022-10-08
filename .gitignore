@@ -1,6 +1,7 @@
 *.stdout
 *.stderr
 vg
+core
 testing/
 .cache/
 *.pdf

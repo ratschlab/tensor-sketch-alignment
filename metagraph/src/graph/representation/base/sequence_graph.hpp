@@ -28,6 +28,8 @@
 #include <faiss/MetaIndexes.h>
 #include <faiss/index_factory.h>
 #include <faiss/Index.h>
+#include <faiss/index_io.h>
+
 using idx_t = faiss::Index::idx_t;
 
 namespace utils {
@@ -176,7 +178,9 @@ class DeBruijnGraph : public SequenceGraph {
                                   size_t embed_dim,
                                   size_t tuple_length,
                                   uint32_t n_times_sketch,
-                                  uint32_t num_threads);
+                                  uint32_t num_threads,
+				  const char* fname,
+				  bool load_index);
     mutable std::unordered_map<node_index, node_index> debugmap;
     /* faiss::IndexHNSWSQ *index_; */
     faiss::IndexHNSW *index_;

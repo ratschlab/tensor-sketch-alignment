@@ -375,11 +375,14 @@ int align_to_graph(Config *config) {
         aligner_config.max_num_free_indels = 6;
         aligner_config.left_end_bonus = 0;
         aligner_config.right_end_bonus = 0;
+	const char* index_saving_fname = (config->index_path).c_str();
         graph->compute_sketches(aligner_config.kmer_word_size,
                                 aligner_config.embed_dim,
                                 aligner_config.tuple_length,
                                 aligner_config.n_times_sketch,
-                                get_num_threads());
+                                get_num_threads(),
+				index_saving_fname,
+				config->load_index);
         /* std::cout << "Sleeping" << std::endl; */
         /* std::this_thread::sleep_for(std::chrono::seconds(15)); */
     }

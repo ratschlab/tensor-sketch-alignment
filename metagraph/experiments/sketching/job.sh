@@ -3,11 +3,12 @@
 sbatch <<EOT
 #!/bin/bash
 
+#SBATCH --job-name=$1_mutation_$2_data_$3_$4
 #SBATCH -o "runs/run_method_$1_mutation_$2_data_$3_suffix_$4.stdout"
 #SBATCH -e "runs/run_method_$1_mutation_$2_data_$3_suffix_$4.stderr"
 #SBATCH --cpus-per-task=8
-#SBATCH --time=20:00:00
-#SBATCH --mem-per-cpu=80G
+#SBATCH --time=48:00:00
+#SBATCH --mem=80G
 
 source ~/.bashrc
 enable_modules

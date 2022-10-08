@@ -105,11 +105,14 @@ def run_metagraph_default(mr):
     times.append(time/NUM_QUERY_SEQS)
     return np.array(scores, dtype=float), np.array(times, dtype=float), np.array(memory, dtype=float)
 
-def run_metagraph_sketching(mr):
+def run_metagraph_sketching(mr, suffix):
     print("Running Sketching...")
     recalls = defaultdict(list) 
     times = []
-    memory = [] 
+    memory = []
+    index_path = f"{DATASET_DIR}/sketch_mutation_{mr}_{suffix}.faiss"
+    load_index = 1 if os.path.exists(index_path) else 0
+
     ref_seqs = read_seqs(os.path.join(DATASET_DIR, f'reference_{mr}.fa'))
     query_seqs = read_seqs(os.path.join(DATASET_DIR, f'mutated_{mr}.fa'))
     scores = np.ones(NUM_QUERY_SEQS, dtype=float) 
@@ -121,10 +124,24 @@ def run_metagraph_sketching(mr):
                   f"--batch-size 1000 " \
                   f"--num-neighbours 10 " \
                   f"--align-end-bonus 0 " \
+                  f"--index-path {index_path} " \
+                  f"--load-index {load_index} " \
                   f"-i {DATASET_DIR}/sequence_{K}.dbg " \
                   f"{DATASET_DIR}/mutated_{mr}.fa "
+    #command = f"/usr/bin/time -f %M {METAGRAPH_PATH} align " \
+    #              f"--seeder sketch " \
+    #              f"--embed-dim 4 " \
+    #              f"--n-times-sketch 1 " \
+    #              f"--parallel {NUM_THREADS} " \
+    #              f"--batch-size 1000 " \
+    #              f"--num-neighbours 10 " \
+    #              f"--align-end-bonus 0 " \
+    #              f"-i {DATASET_DIR}/sequence_{K}.dbg " \
+    #              f"{DATASET_DIR}/mutated_{mr}.fa "
     print(command)
+    full_start_time = mytime.time()
     result_ = subprocess.run(command.split(), capture_output=True, text=True)
+    full_end_time = mytime.time()
     memory.append(int(result_.stderr.strip().split("\n")[-1])/1024/1024)
     alignments = result_.stdout.split('\n')[:-2]
     time = json.loads(result_.stdout.split('\n')[-2])['time']
@@ -138,6 +155,10 @@ def run_metagraph_sketching(mr):
         edit_distance = edlib.align(ref_seq, matched_seq, task='path')['editDistance']
         scores[seq_idx_num] = edit_distance / len(ref_seq)
     times.append(time/NUM_QUERY_SEQS)
+
+    #with open(f"{DATASET_DIR}/time_output_{mr}.sketch", 'w') as timefile:
+    #    timefile.write(str(full_end_time - full_start_time))
+
     return np.array(scores, dtype=float), np.array(times, dtype=float), np.array(memory, dtype=float)
 
 def run_graphaligner(mr):
@@ -277,7 +298,7 @@ if __name__ == '__main__':
     elif args.method == 'default':
         method_scores, method_times, method_memory = run_metagraph_default(args.mutation) 
     elif args.method == 'sketch':
-        method_scores, method_times, method_memory = run_metagraph_sketching(args.mutation) 
+        method_scores, method_times, method_memory = run_metagraph_sketching(args.mutation, suffix) 
     elif args.method == 'map':
         method_scores, method_times, method_memory = run_vg_map(args.mutation) 
     elif args.method == 'graphaligner':

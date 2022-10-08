@@ -23,6 +23,8 @@ class Config {
     bool experiment = false;
     std::string output_path = "/home/alex/metagraph/metagraph/experiments/sketching/data/";
     std::string seeder = "default";
+    std::string index_path = "";
+    bool load_index = true;
     using kmer_type = uint64_t;
     using seq_type = uint8_t;
 //    kmer_type kmer_word_size = ts::int_pow<kmer_type>(ts::alphabet_size, 1);

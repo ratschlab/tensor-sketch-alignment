@@ -505,7 +505,15 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
                                      size_t embed_dim,
                                      size_t tuple_length,
                                      uint32_t n_times_sketch,
-                                     uint32_t num_threads) {
+                                     uint32_t num_threads,
+				     const char* fname,
+				     bool load_index) {
+
+    if (load_index) {
+    	//read index from file
+	index = static_cast<faiss::IndexIDMap2*>(faiss::read_index(fname));
+	return;
+    }
     uint32_t k = get_k();
     uint32_t total_ram = sizeof(double) * (embed_dim + 1) * static_cast<uint32_t>(std::ceil((double)num_nodes() / (double)get_k()));
 
@@ -575,6 +583,8 @@ void DeBruijnGraph::compute_sketches(uint64_t kmer_word_size,
             });
         
     }
+    faiss::write_index(index, fname);
+    
 }
 
 void DeBruijnGraph::print(std::ostream &out) const {
