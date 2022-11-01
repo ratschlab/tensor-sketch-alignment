@@ -31,6 +31,7 @@ This will build FAISS, which is a required dependency of the package.
 ```
 ./metagraph build 
             -k 80 
+            -o $DBG_PATH
             $FASTA
 ```
 
