@@ -69,4 +69,4 @@ For further tunable parameters on the alignment, consult [the MetaGraph document
 Detailed explanations will be added soon. The files that have been run to create the plots are found in `metagraph/experiments/sketching`.
 
 ## Developer Notes
-Metagraph and the Tensor Sketch Aligner is distributed under the GPLv3 License (see LICENSE). Please find further information in the AUTHORS and COPYRIGHTS files.
+Metagraph and the Tensor Sketch Aligner is distributed under the GPLv3 License (see LICENSE).
