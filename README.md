@@ -57,6 +57,7 @@ This will build FAISS, which is a required dependency of the package.
             --batch-size 1000
             --num-neighbours $KNN
             --align-end-bonus 0
+            --index-path $FAISS_INDEX_PATH
             --load-index 0
             -i $DBG_PATH
             $FASTA
